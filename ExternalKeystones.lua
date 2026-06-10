@@ -13,6 +13,9 @@ function External:IsAccessible(value)
 end
 
 function External:NormalizeSender(sender)
+    if KeyKeystones and KeyKeystones.NormalizeSender then
+        return KeyKeystones:NormalizeSender(sender)
+    end
     if not self:IsAccessible(sender) or sender == "" then
         return nil
     end

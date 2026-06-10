@@ -15,6 +15,9 @@ local MAX_FRAME_HEIGHT = 900
 
 PartyUI.TAB_COMPLETIONS = "completions"
 PartyUI.TAB_READY = "ready"
+PartyUI.FRAME_LEVEL_TELEPORT_BAR = 30
+PartyUI.FRAME_LEVEL_SCROLL = 10
+PartyUI.PANE_BOTTOM_PADDING = 8
 PartyUI.activeTab = PartyUI.activeTab or PartyUI.TAB_COMPLETIONS
 PartyUI.refreshLockUntil = PartyUI.refreshLockUntil or 0
 PartyUI.REFRESH_COOLDOWN = 10
@@ -232,13 +235,13 @@ function PartyUI:ApplyCompletionsLayering(pane, teleportHeight)
 
     pane.teleportBar:ClearAllPoints()
     pane.teleportBar:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, 0)
-    pane.teleportBar:SetFrameLevel(30)
+    pane.teleportBar:SetFrameLevel(self.FRAME_LEVEL_TELEPORT_BAR)
     pane.teleportBar:EnableMouse(false)
     pane.teleportBar:Raise()
 
     pane.scrollFrame:ClearAllPoints()
     pane.scrollFrame:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, -(teleportHeight + SECTION_GAP))
-    pane.scrollFrame:SetFrameLevel(10)
+    pane.scrollFrame:SetFrameLevel(self.FRAME_LEVEL_SCROLL)
 end
 
 function PartyUI:EnsureCompletionsScroll(pane)
@@ -409,22 +412,9 @@ function PartyUI:RefreshCompletionsPane(contentWidth, members)
     local memberCount = members and #members or 0
     local scrollChild = pane.scrollChild
 
-    if pane.bestLabel then
-        pane.bestLabel:Hide()
-    end
-
     pane.bestTable:ClearAllPoints()
     pane.bestTable:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
     KeyTeleports:LayoutBestTable(pane.bestTable, contentWidth, members)
-
-    if pane.partyLabel then
-        pane.partyLabel:Hide()
-    end
-    if pane.rows then
-        for _, row in ipairs(pane.rows) do
-            row:Hide()
-        end
-    end
 
     local contentHeight = self:GetMemberBlockHeight(memberCount, contentWidth)
     local visibleRows = math.max(1, math.min(memberCount, VISIBLE_MEMBER_ROWS))
@@ -432,7 +422,7 @@ function PartyUI:RefreshCompletionsPane(contentWidth, members)
     self:UpdateCompletionsScroll(memberCount, contentWidth, contentHeight, viewportHeight)
     self:ApplyCompletionsLayering(pane, teleportHeight)
 
-    return teleportHeight + SECTION_GAP + viewportHeight + 8
+    return teleportHeight + SECTION_GAP + viewportHeight + self.PANE_BOTTOM_PADDING
 end
 
 function PartyUI:RefreshReadyPane(contentWidth, members)
@@ -442,7 +432,7 @@ function PartyUI:RefreshReadyPane(contentWidth, members)
 
     local pane = self.frame.readyPane
     local tableHeight = KeyReadyCheck:LayoutTable(pane.readyTable, contentWidth, members)
-    return tableHeight + 8
+    return tableHeight + self.PANE_BOTTOM_PADDING
 end
 
 function PartyUI:Refresh()
@@ -459,14 +449,8 @@ function PartyUI:Refresh()
     self:LayoutTabs()
 
     local members = self:CollectMembers()
-    local completionsHeight = HEADER_HEIGHT
-    local readyHeight = HEADER_HEIGHT
-
-    if self.activeTab == self.TAB_COMPLETIONS then
-        completionsHeight = self:RefreshCompletionsPane(contentWidth, members)
-    else
-        readyHeight = self:RefreshReadyPane(contentWidth, members)
-    end
+    local completionsHeight = self:RefreshCompletionsPane(contentWidth, members)
+    local readyHeight = self:RefreshReadyPane(contentWidth, members)
 
     local contentHeight
     if self.activeTab == self.TAB_READY then
@@ -489,10 +473,6 @@ function PartyUI:Refresh()
     self._lastMinHeight = contentHeight
 
     self._layingOut = false
-
-    if KeyClickDebug and KeyClickDebug:IsEnabled() then
-        KeyClickDebug:RewireAll()
-    end
 end
 
 function PartyUI:TogglePanel()

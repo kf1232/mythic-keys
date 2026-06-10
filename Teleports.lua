@@ -16,6 +16,8 @@ Teleports.BEST_NAME_GAP = 2
 Teleports.LEADER_OUTLINE_SIZE = 3
 Teleports.LAYOUT_GAP = 4
 Teleports.OVERTIME_DESATURATION = 0.72
+-- Secure action button must sit above decorative slot children (labelBar +3, leaderOutline +4).
+Teleports.ACTION_FRAME_LEVEL_OFFSET = 50
 
 Teleports.CLASS_ICON_TEXTURE = "Interface\\GLUES\\CHARACTERCREATE\\UI-CharacterCreate-Classes"
 
@@ -89,6 +91,16 @@ function Teleports:GetDungeonTexture(challengeModeID)
     return self:GetDefaultIcon()
 end
 
+function Teleports:GetDungeonDisplayName(challengeModeID, fallback)
+    if KeyKeystones and KeyKeystones.GetDungeonName then
+        local name = KeyKeystones:GetDungeonName(challengeModeID)
+        if name and name ~= "Unknown" then
+            return name
+        end
+    end
+    return fallback
+end
+
 function Teleports:IsSpellKnown(spellID)
     if not spellID then
         return false
@@ -132,14 +144,16 @@ function Teleports:HandleTeleportClick(spellID)
     end
 
     local now = GetTime()
-    if self.lastHandleSpellID == spellID and self.lastHandleTime and (now - self.lastHandleTime) < 0.1 then
+    if self.lastClickSpellID == spellID and self.lastClickTime and (now - self.lastClickTime) < 0.1 then
         return
     end
 
-    self.lastHandleSpellID = spellID
-    self.lastHandleTime = now
     self.lastClickSpellID = spellID
     self.lastClickTime = now
+
+    if KeyClickDebug and KeyClickDebug.LogAction then
+        KeyClickDebug:LogAction("teleport.slot.action", spellID)
+    end
 
     if not self:IsSpellKnown(spellID) then
         self:LogTeleport(spellID, "unavailable")
@@ -198,7 +212,7 @@ function Teleports:ConfigureSlotMouseLayers(slot)
     end
 
     if slot.action then
-        slot.action:SetFrameLevel(slot:GetFrameLevel() + 50)
+        slot.action:SetFrameLevel(slot:GetFrameLevel() + self.ACTION_FRAME_LEVEL_OFFSET)
         slot.action:Raise()
     end
 end
@@ -279,19 +293,7 @@ function Teleports:CreateSlot(parent, index, dungeon)
 end
 
 function Teleports:GetClassColor(classFilename)
-    if KeyKeystones and KeyKeystones.GetClassColor then
-        return KeyKeystones:GetClassColor(classFilename)
-    end
-
-    if issecretvalue and issecretvalue(classFilename) then
-        return 1, 1, 1
-    end
-
-    local color = classFilename and RAID_CLASS_COLORS[classFilename]
-    if color then
-        return color.r, color.g, color.b
-    end
-    return 1, 1, 1
+    return KeyKeystones:GetClassColor(classFilename)
 end
 
 function Teleports:SetClassIcon(texture, classFilename)
@@ -317,15 +319,8 @@ end
 
 function Teleports:CreateKeyToken(parent)
     local token = CreateFrame("Frame", nil, parent)
-
-    token.icon = token:CreateTexture(nil, "ARTWORK")
-    token.icon:SetPoint("CENTER")
-
-    token.text = token:CreateFontString(nil, "OVERLAY")
-    token.text:SetTextColor(1, 1, 1, 1)
-
+    self:EnsureTokenParts(token)
     token:EnableMouse(false)
-
     return token
 end
 
@@ -458,7 +453,6 @@ end
 
 function Teleports:UpdateSlotTokens(slot, tokens, slotWidth, slotHeight)
     self:EnsureTokenPool(slot)
-    self:ConfigureSlotMouseLayers(slot)
 
     local cubeSize = math.min(slotWidth, slotHeight)
     local compact = self:IsCompactSlot(cubeSize)
@@ -517,13 +511,7 @@ end
 function Teleports:UpdateSlotBorder(slot, dungeon)
     slot.spellID = dungeon.spellID
     slot.shortName = dungeon.shortName
-
-    if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
-        local name = C_ChallengeMode.GetMapUIInfo(dungeon.challengeModeID)
-        slot.dungeonName = name or dungeon.shortName
-    else
-        slot.dungeonName = dungeon.shortName
-    end
+    slot.dungeonName = self:GetDungeonDisplayName(dungeon.challengeModeID, dungeon.shortName)
 
     slot.icon:SetTexture(self:GetDungeonTexture(dungeon.challengeModeID))
     slot.icon:SetDesaturated(false)
@@ -548,8 +536,6 @@ function Teleports:UpdateSlotBorder(slot, dungeon)
         slot.action:Disable()
         slot.action:EnableMouse(false)
     end
-
-    self:ConfigureSlotMouseLayers(slot)
 end
 
 function Teleports:ApplySlotLabel(slot, dungeon, slotSize)
@@ -577,8 +563,6 @@ function Teleports:ApplySlotLabel(slot, dungeon, slotSize)
         slot.labelBar:Show()
     end
 
-    self:ConfigureSlotMouseLayers(slot)
-
     slot.label:SetWidth(math.max(0, slotSize - 12))
     slot.label:SetFont("Fonts\\FRIZQT__.TTF", fontSize, "OUTLINE")
     slot.label:SetTextColor(1, 1, 1, 1)
@@ -590,6 +574,7 @@ function Teleports:UpdateSlot(slot, dungeon, tokens, slotWidth, slotHeight)
     self:UpdateSlotBorder(slot, dungeon)
     self:ApplySlotLabel(slot, dungeon, slotWidth)
     self:UpdateSlotTokens(slot, tokens, slotWidth, slotHeight)
+    self:ConfigureSlotMouseLayers(slot)
 end
 
 function Teleports:InitBar()
@@ -643,10 +628,7 @@ function Teleports:LayoutBar(bar, contentWidth)
             -(row * pitch)
         )
 
-        slot.icon:SetDesaturated(false)
-        slot.icon:SetAlpha(1)
         self:UpdateSlot(slot, dungeon, tokensByMap[dungeon.challengeModeID], slotSize, slotSize)
-        self:ConfigureSlotMouseLayers(slot)
         slot:Show()
     end
 
@@ -840,13 +822,7 @@ function Teleports:LayoutBestTable(tableFrame, contentWidth, members)
 end
 
 function Teleports:GetDungeonName(dungeon)
-    if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
-        local name = C_ChallengeMode.GetMapUIInfo(dungeon.challengeModeID)
-        if name then
-            return name
-        end
-    end
-    return dungeon.shortName
+    return self:GetDungeonDisplayName(dungeon.challengeModeID, dungeon.shortName)
 end
 
 function Teleports:LogTeleport(spellID, reason, extra)
@@ -902,8 +878,9 @@ function Teleports:InitLogging()
     frame:RegisterEvent("UNIT_SPELLCAST_SENT")
     frame:RegisterEvent("UI_ERROR_MESSAGE")
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    frame:RegisterEvent("SPELLS_CHANGED")
     frame:SetScript("OnEvent", function(_, event, ...)
-        if event == "PLAYER_REGEN_ENABLED" then
+        if event == "PLAYER_REGEN_ENABLED" or event == "SPELLS_CHANGED" then
             Teleports:RefreshActionButtons()
             return
         end

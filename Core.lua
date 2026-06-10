@@ -132,15 +132,13 @@ end
 
 function Key.InvalidatePartySyncPayloads()
 
-    if not KeyPartySync then
+    if KeyPartySync and KeyPartySync.InvalidatePayloadCache then
 
-        return
+        KeyPartySync:InvalidatePayloadCache("key")
+
+        KeyPartySync:InvalidatePayloadCache("best")
 
     end
-
-    KeyPartySync.lastPayload = nil
-
-    KeyPartySync.lastBestPayload = nil
 
 end
 
@@ -184,15 +182,7 @@ Key.TRIGGERS = {
 
 
 
-    GROUP_JOINED = function()
-
-        Key.Dispatch("PARTY_SYNC_SCHEDULE")
-
-    end,
-
-
-
-    GROUP_ROSTER_UPDATE = function()
+    GROUP_CHANGED = function()
 
         Key.Dispatch("PARTY_SYNC_SCHEDULE")
 
@@ -232,7 +222,7 @@ Key.TRIGGERS = {
 
         if KeyPartySync then
 
-            KeyPartySync.lastReadyPayload = nil
+            KeyPartySync:InvalidatePayloadCache("ready")
 
             KeyPartySync:PushReady(false)
 
@@ -654,9 +644,9 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 
 
 
-    if event == "PLAYER_LOGIN" then
+    if event == "GROUP_JOINED" or event == "GROUP_ROSTER_UPDATE" then
 
-        Key.Dispatch("PARTY_SYNC_SCHEDULE")
+        Key.Dispatch("GROUP_CHANGED")
 
         return
 

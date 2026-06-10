@@ -10,12 +10,23 @@ function ClickDebug:IsEnabled()
     return self.enabled and true or false
 end
 
-function ClickDebug:Log(message)
+function ClickDebug:Log(message, label)
     if not self.enabled or not KeyLog or not KeyLog.Add then
         return
     end
 
-    KeyLog:Add(message, "click:" .. message, 0.05)
+    KeyLog:Add(message, "click:" .. (label or message), 0.05)
+end
+
+function ClickDebug:LogAction(label, detail)
+    if not self.enabled then
+        return
+    end
+
+    self:Log(
+        string.format("[click] %s — action (%s)", label, tostring(detail or "?")),
+        label
+    )
 end
 
 function ClickDebug:GetScriptSafe(frame, scriptType)
@@ -66,16 +77,13 @@ function ClickDebug:DetachAll()
     end
 end
 
+-- Only hooks mouse/click scripts. Never attach to InsecureActionButtonTemplate frames.
 function ClickDebug:Attach(frame, label, options)
     if not frame or not label then
         return
     end
 
     options = options or {}
-
-    if options.secureAction then
-        return
-    end
 
     if self.attached[frame] then
         self:RestoreFrame(frame)
@@ -109,14 +117,14 @@ function ClickDebug:Attach(frame, label, options)
     end
 
     frame:SetScript("OnMouseDown", function(self, button)
-        ClickDebug:Log(string.format("[click] %s — mouse down (%s)", label, button or "?"))
+        ClickDebug:Log(string.format("[click] %s — mouse down (%s)", label, button or "?"), label)
         if state.onMouseDown then
             state.onMouseDown(self, button)
         end
     end)
 
     frame:SetScript("OnMouseUp", function(self, button)
-        ClickDebug:Log(string.format("[click] %s — mouse up (%s)", label, button or "?"))
+        ClickDebug:Log(string.format("[click] %s — mouse up (%s)", label, button or "?"), label)
         if state.onMouseUp then
             state.onMouseUp(self, button)
         end
@@ -124,7 +132,7 @@ function ClickDebug:Attach(frame, label, options)
 
     if supportsOnClick and not options.skipOnClick then
         frame:SetScript("OnClick", function(self, button)
-            ClickDebug:Log(string.format("[click] %s — click (%s)", label, button or "?"))
+            ClickDebug:Log(string.format("[click] %s — click (%s)", label, button or "?"), label)
             if state.onClick then
                 state.onClick(self, button)
             end

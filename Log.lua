@@ -250,15 +250,7 @@ function Log:Add(message, dedupeKey, dedupeWindow)
 end
 
 function Log:FormatKeystone(key)
-    if KeyKeystones and KeyKeystones.FormatKey then
-        return KeyKeystones:FormatKey(key)
-    end
-
-    if not key or not key.level or key.level == 0 then
-        return "no key"
-    end
-
-    return string.format("+%d", key.level)
+    return KeyKeystones:FormatKey(key)
 end
 
 function Log:LogKeystone(sender, key)

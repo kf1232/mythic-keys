@@ -20,6 +20,13 @@ function Keystones:IsAccessible(value)
     return value ~= nil and (not issecretvalue or not issecretvalue(value))
 end
 
+function Keystones:NormalizeSender(sender)
+    if not self:IsAccessible(sender) or sender == "" then
+        return nil
+    end
+    return Ambiguate(sender, "none")
+end
+
 function Keystones:BuildLookupKeys(name)
     if not self:IsAccessible(name) or name == "" then
         return {}
@@ -741,6 +748,7 @@ function Keystones:GetUnitRole(unit)
     return nil
 end
 
+-- Keys are indexed by challenge map ID (same as Teleports.SEASON_DUNGEONS[].challengeModeID).
 function Keystones:GetPartyKeyTokensByMap()
     local byMap = {}
 

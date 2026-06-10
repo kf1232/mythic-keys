@@ -63,7 +63,11 @@ function Sync:Send(message)
 
     local ok = pcall(C_ChatInfo.SendAddonMessage, self.PREFIX, message, self:GetChannel())
     if not ok then
-        KeyLog:Add("Party keystone share skipped (addon messages blocked).")
+        KeyLog:Add(
+            "Party keystone share skipped (addon messages blocked).",
+            "sync:blocked",
+            30
+        )
     end
     return ok
 end
@@ -158,11 +162,21 @@ function Sync:PushAll(force)
     self:PushReadyState(force)
 end
 
+function Sync:InvalidatePayloadCache(scope)
+    if not scope or scope == "key" then
+        self.lastPayload = nil
+    end
+    if not scope or scope == "best" then
+        self.lastBestPayload = nil
+    end
+    if not scope or scope == "ready" then
+        self.lastReadyPayload = nil
+        self.lastReadyStatePayload = nil
+    end
+end
+
 function Sync:ClearLocalPayloadCache()
-    self.lastPayload = nil
-    self.lastBestPayload = nil
-    self.lastReadyPayload = nil
-    self.lastReadyStatePayload = nil
+    self:InvalidatePayloadCache()
 end
 
 function Sync:CancelFollowUpSync()
@@ -210,8 +224,10 @@ end
 
 function Sync:OnGroupLeft()
     self:CancelFollowUpSync()
-    KeyKeystones:ClearPartyCache()
-    if KeyReadyCheck then
+    if KeyKeystones and KeyKeystones.ClearPartyCache then
+        KeyKeystones:ClearPartyCache()
+    end
+    if KeyReadyCheck and KeyReadyCheck.ClearReadyCache then
         KeyReadyCheck:ClearReadyCache()
     end
     self:ClearLocalPayloadCache()
@@ -241,6 +257,10 @@ function Sync:OnAddonMessage(prefix, message, channel, sender)
 
     if channel ~= "PARTY" and channel ~= "RAID" then
         return
+    end
+
+    if KeyKeystones and KeyKeystones.NormalizeSender then
+        sender = KeyKeystones:NormalizeSender(sender) or sender
     end
 
     if message == self.PROTOCOL.REQUEST then
@@ -282,10 +302,6 @@ function Sync:OnAddonMessage(prefix, message, channel, sender)
         Key.Dispatch("REFRESH_UI", { ifShown = true })
         return
     end
-end
-
-function Sync:NormalizeSender(sender)
-    return Ambiguate(sender, "short")
 end
 
 Sync:Init()
