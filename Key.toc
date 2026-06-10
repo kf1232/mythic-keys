@@ -1,0 +1,20 @@
+## Interface: 120007, 120005, 120001, 120000
+## Title: Key
+## Notes: Party list and debug console. Type /keyf to open.
+## Author: KyleF
+## Version: 1.0.0
+## OptionalDeps: DBM-Core, Details
+
+Log.lua
+ClickDebug.lua
+Auras.lua
+Core.lua
+UI.lua
+Keystones.lua
+ExternalKeystones.lua
+PartySync.lua
+Teleports.lua
+ReadyCheck.lua
+PartyUI.lua
+DebugData.lua
+DebugUI.lua
