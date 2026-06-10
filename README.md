@@ -111,6 +111,30 @@ Addon message prefix: `KeyF`
 
 KyleF — version 1.0.0
 
-## License
+## Use policy
 
-No license file is included in this repository. Add one if you plan to distribute the addon publicly.
+Key is provided **free of charge** for personal use with World of Warcraft. By installing or using this addon, you agree to the following:
+
+### Permitted use
+
+- Install and use Key on your own Battle.net account(s).
+- Share unmodified copies of this addon with others, provided you include this README and do not charge for the addon itself.
+- Fork or modify the source for personal use or public distribution, provided you credit the original author and state clearly that your version is a derivative work.
+
+### Prohibited use
+
+- Selling Key, locking features behind payment, or bundling it as part of a paid product or service.
+- Using Key in any way that violates the [World of Warcraft Terms of Use](https://www.blizzard.com/legal/wow_tou) or [Blizzard UI Add-On Development Policy](https://develop.battle.net/documentation/world-of-warcraft/ui-add-ons).
+- Misrepresenting modified versions as the official Key addon or implying endorsement by the author or Blizzard Entertainment.
+
+### Blizzard & third-party addons
+
+Key is a **third-party fan project**. It is not affiliated with, endorsed by, or sponsored by Blizzard Entertainment. Key optionally integrates with libraries shipped by other addons (for example DBM-Core and Details); those projects retain their own licenses and policies.
+
+### Disclaimer
+
+Key is provided **“as is”**, without warranty of any kind, express or implied. The author is not liable for any loss of data, account action, in-game penalties, or other damages arising from use of this addon. You use Key at your own risk.
+
+### Contributions
+
+If you submit changes (for example via pull request), you grant permission for those changes to be included in this project under the same use policy above, unless you specify otherwise in writing.
