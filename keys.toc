@@ -2,7 +2,7 @@
 ## Title: Key
 ## Notes: Party list and debug console. Type /keyf to open.
 ## Author: KyleF
-## Version: 1.0.0
+## Version: 2026.0612.1
 ## OptionalDeps: DBM-Core, Details
 
 Log.lua
