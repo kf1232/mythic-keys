@@ -132,3 +132,7 @@ function MinimapButton:Init()
         end)
     end
 end
+
+Key.RegisterTrigger("ADDON_LOADED", function()
+    MinimapButton:Init()
+end)

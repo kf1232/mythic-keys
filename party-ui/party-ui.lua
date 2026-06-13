@@ -455,3 +455,38 @@ end
 function PartyUI:IsReadyTabActive()
     return self.activeTab == self.TAB_READY
 end
+
+Key.RegisterTrigger("GROUP_LEFT", function()
+    Key.Dispatch("REFRESH_UI", { ifShown = true })
+end)
+
+Key.RegisterTrigger("PLAYER_ENTERING_WORLD", function()
+    Key.Dispatch("REFRESH_UI", { ifShown = true })
+end)
+
+Key.RegisterTrigger("KEYSTONE_DATA_CHANGED", function()
+    Key.Dispatch("REFRESH_UI", { ifShown = true })
+end)
+
+Key.RegisterTrigger("PARTY_CHANGED", function(ctx)
+    Key.Dispatch("REFRESH_UI", {
+        ifShown = true,
+        immediate = ctx.immediate,
+    })
+end)
+
+Key.RegisterTrigger("UI_PANEL_OPEN", function()
+    Key.Dispatch("REFRESH_UI", { immediate = true })
+end)
+
+Key.RegisterTrigger("UI_REFRESH_CLICK", function()
+    Key.Dispatch("REFRESH_UI", { immediate = true })
+end)
+
+Key.RegisterTrigger("UI_READY_TOGGLE", function()
+    Key.Dispatch("REFRESH_UI", { ifShown = true, immediate = true })
+end)
+
+Key.RegisterTrigger("UI_RESIZE", function()
+    Key.Dispatch("REFRESH_UI")
+end)

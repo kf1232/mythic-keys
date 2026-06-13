@@ -50,19 +50,6 @@ local function CancelRefreshSchedule()
     end
 end
 
-function Key.Dispatch(trigger, ctx)
-    local handler = Key.TRIGGERS and Key.TRIGGERS[trigger]
-    if not handler then
-        return
-    end
-
-    if Key.Log and Key.Log.RunProtected then
-        return Key.Log:RunProtected("Dispatch:" .. tostring(trigger), handler, ctx or {})
-    end
-
-    return handler(ctx or {})
-end
-
 function Key.RefreshPartyUIIfShown()
     Key.Dispatch("REFRESH_UI", { ifShown = true })
 end
@@ -73,134 +60,34 @@ function Key.SchedulePartySyncIfGrouped()
     end
 end
 
-function Key.InvalidatePartySyncPayloads()
-    if Key.PartySync and Key.PartySync.InvalidatePayloadCache then
-        Key.PartySync:InvalidatePayloadCache("key")
-        Key.PartySync:InvalidatePayloadCache("best")
-    end
-end
-
-Key.TRIGGERS = {
-    ADDON_LOADED = function()
-        if not Key.PartyUI or not Key.PartyUI.TogglePanel then
-            PrintMessage("|cffFF0000Key:|r PartyUI failed to load. Enable /console scriptErrors 1 and /reload.")
-        else
-            PrintMessage("|cff55FF55Key|r loaded. |cffFFFFFF/keyf|r party list, |cffFFFFFF/keyf debug|r console.")
-        end
-        if Key.PartySync and Key.PartySync.BootstrapIfGrouped then
-            Key.PartySync:BootstrapIfGrouped()
-        end
-        if Key.Minimap and Key.Minimap.Init then
-            Key.Minimap:Init()
-        end
-    end,
-
-    GROUP_LEFT = function()
-        if Key.PartySync and Key.PartySync.OnGroupLeft then
-            Key.PartySync:OnGroupLeft()
-        end
-        Key.Dispatch("REFRESH_UI", { ifShown = true })
-    end,
-
-    GROUP_CHANGED = function()
-        Key.Dispatch("PARTY_SYNC_SCHEDULE")
-    end,
-
-    PLAYER_ENTERING_WORLD = function()
-        if IsInGroup() and Key.Keystones and Key.Keystones.RestoreSessionCacheIfNeeded then
-            Key.Keystones:RestoreSessionCacheIfNeeded()
-        end
-        Key.Dispatch("PARTY_SYNC_SCHEDULE")
-        Key.Dispatch("REFRESH_UI", { ifShown = true })
-    end,
-
-    KEYSTONE_DATA_CHANGED = function()
-        Key.InvalidatePartySyncPayloads()
-        Key.Dispatch("PARTY_SYNC_SCHEDULE")
-        Key.Dispatch("REFRESH_UI", { ifShown = true })
-    end,
-
-    CHAT_MSG_ADDON = function(ctx)
-        if Key.PartySync then
-            Key.PartySync:OnAddonMessage(ctx.prefix, ctx.message, ctx.channel, ctx.sender)
-        end
-    end,
-
-    PARTY_SYNC_SCHEDULE = function()
-        if IsInGroup() and Key.PartySync then
-            Key.PartySync:SchedulePartySync()
-            return
-        end
-        Key.Dispatch("REFRESH_UI", { ifShown = true })
-    end,
-
-    PARTY_CHANGED = function(ctx)
-        if Key.PartySync then
-            Key.PartySync:OnPartyChanged()
-        end
-        Key.Dispatch("REFRESH_UI", {
-            ifShown = true,
-            immediate = ctx.immediate,
-        })
-    end,
-
-    REFRESH_UI = function(ctx)
-        if ctx.immediate then
-            CancelRefreshSchedule()
-            if pendingRefreshCtx then
-                ctx = MergeRefreshContext(pendingRefreshCtx, ctx)
-                pendingRefreshCtx = nil
-            end
-            RunRefreshUI(ctx)
-            return
-        end
-
-        pendingRefreshCtx = MergeRefreshContext(pendingRefreshCtx, ctx)
+Key.RegisterTrigger("REFRESH_UI", function(ctx)
+    if ctx.immediate then
         CancelRefreshSchedule()
-        refreshTimer = C_Timer.NewTimer(Key.refreshDebounce, function()
-            refreshTimer = nil
-            local pending = pendingRefreshCtx
+        if pendingRefreshCtx then
+            ctx = MergeRefreshContext(pendingRefreshCtx, ctx)
             pendingRefreshCtx = nil
-            RunRefreshUI(pending or {})
-        end)
-    end,
-
-    UI_PANEL_OPEN = function()
-        if Key.PartySync then
-            if IsInGroup() then
-                Key.PartySync:OnPartyChanged()
-            else
-                Key.PartySync:PushAll(true)
-            end
         end
-        Key.Dispatch("REFRESH_UI", { immediate = true })
-    end,
+        RunRefreshUI(ctx)
+        return
+    end
 
-    UI_REFRESH_CLICK = function()
-        if IsInGroup() and Key.PartySync then
-            Key.Dispatch("PARTY_CHANGED", { immediate = true })
-            return
-        end
-        if Key.PartySync then
-            Key.PartySync:PushBest(true)
-            Key.PartySync:PushReady(true)
-        end
-        Key.Dispatch("REFRESH_UI", { immediate = true })
-    end,
+    pendingRefreshCtx = MergeRefreshContext(pendingRefreshCtx, ctx)
+    CancelRefreshSchedule()
+    refreshTimer = C_Timer.NewTimer(Key.refreshDebounce, function()
+        refreshTimer = nil
+        local pending = pendingRefreshCtx
+        pendingRefreshCtx = nil
+        RunRefreshUI(pending or {})
+    end)
+end)
 
-    UI_RESIZE = function()
-        Key.Dispatch("REFRESH_UI")
-    end,
-
-    UI_READY_TOGGLE = function()
-        if Key.PartySync then
-            Key.PartySync:PushReadyState(true)
-            Key.PartySync.lastReadyPayload = nil
-            Key.PartySync:PushReady(true)
-        end
-        Key.Dispatch("REFRESH_UI", { ifShown = true, immediate = true })
-    end,
-}
+Key.RegisterTrigger("ADDON_LOADED", function()
+    if not Key.PartyUI or not Key.PartyUI.TogglePanel then
+        PrintMessage("|cffFF0000Key:|r PartyUI failed to load. Enable /console scriptErrors 1 and /reload.")
+    else
+        PrintMessage("|cff55FF55Key|r loaded. |cffFFFFFF/keyf|r party list, |cffFFFFFF/keyf debug|r console.")
+    end
+end)
 
 local function RunSlashCommand(msg)
     msg = strtrim(msg or ""):lower()
@@ -327,4 +214,3 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
         HandleEvent()
     end
 end)
-

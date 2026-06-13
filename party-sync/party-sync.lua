@@ -314,3 +314,64 @@ function Sync:OnAddonMessage(prefix, message, channel, sender)
 end
 
 Sync:Init()
+
+Key.RegisterTrigger("ADDON_LOADED", function()
+    Sync:BootstrapIfGrouped()
+end)
+
+Key.RegisterTrigger("GROUP_LEFT", function()
+    Sync:OnGroupLeft()
+end)
+
+Key.RegisterTrigger("GROUP_CHANGED", function()
+    Key.Dispatch("PARTY_SYNC_SCHEDULE")
+end)
+
+Key.RegisterTrigger("PLAYER_ENTERING_WORLD", function()
+    Key.Dispatch("PARTY_SYNC_SCHEDULE")
+end)
+
+Key.RegisterTrigger("KEYSTONE_DATA_CHANGED", function()
+    Sync:InvalidatePayloadCache("key")
+    Sync:InvalidatePayloadCache("best")
+    Key.Dispatch("PARTY_SYNC_SCHEDULE")
+end)
+
+Key.RegisterTrigger("CHAT_MSG_ADDON", function(ctx)
+    Sync:OnAddonMessage(ctx.prefix, ctx.message, ctx.channel, ctx.sender)
+end)
+
+Key.RegisterTrigger("PARTY_SYNC_SCHEDULE", function()
+    if IsInGroup() then
+        Sync:SchedulePartySync()
+        return
+    end
+    Key.Dispatch("REFRESH_UI", { ifShown = true })
+end)
+
+Key.RegisterTrigger("PARTY_CHANGED", function()
+    Sync:OnPartyChanged()
+end)
+
+Key.RegisterTrigger("UI_PANEL_OPEN", function()
+    if IsInGroup() then
+        Sync:OnPartyChanged()
+    else
+        Sync:PushAll(true)
+    end
+end)
+
+Key.RegisterTrigger("UI_REFRESH_CLICK", function()
+    if IsInGroup() then
+        Key.Dispatch("PARTY_CHANGED", { immediate = true })
+        return
+    end
+    Sync:PushBest(true)
+    Sync:PushReady(true)
+end)
+
+Key.RegisterTrigger("UI_READY_TOGGLE", function()
+    Sync:PushReadyState(true)
+    Sync.lastReadyPayload = nil
+    Sync:PushReady(true)
+end)

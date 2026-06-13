@@ -5,7 +5,44 @@ Key.Api = Key.Api or {}
 Key.Integrations = Key.Integrations or {}
 Key.Debug = Key.Debug or {}
 Key.Log = Key.Log or {}
+Key.TRIGGERS = Key.TRIGGERS or {}
 local Log = Key.Log
+
+function Key.RegisterTrigger(name, handler)
+    if type(name) ~= "string" or name == "" or type(handler) ~= "function" then
+        return false
+    end
+
+    local handlers = Key.TRIGGERS[name]
+    if not handlers then
+        Key.TRIGGERS[name] = { handler }
+        return true
+    end
+
+    handlers[#handlers + 1] = handler
+    return true
+end
+
+function Key.Dispatch(trigger, ctx)
+    local handlers = Key.TRIGGERS[trigger]
+    if not handlers then
+        return
+    end
+
+    ctx = ctx or {}
+    for index, handler in ipairs(handlers) do
+        local context = "Dispatch:" .. tostring(trigger)
+        if #handlers > 1 then
+            context = context .. ":" .. tostring(index)
+        end
+
+        if Log.RunProtected then
+            Log:RunProtected(context, handler, ctx)
+        else
+            handler(ctx)
+        end
+    end
+end
 
 Log.entries = Log.entries or {}
 Log.listeners = Log.listeners or {}

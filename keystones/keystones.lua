@@ -761,3 +761,9 @@ function Keystones:GetPartyKeyTokensByMap()
 
     return byMap
 end
+
+Key.RegisterTrigger("PLAYER_ENTERING_WORLD", function()
+    if IsInGroup() then
+        Keystones:RestoreSessionCacheIfNeeded()
+    end
+end)
