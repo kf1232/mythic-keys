@@ -87,8 +87,8 @@ The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons).
 | `ExternalKeystones.lua` | LibKeystone / LibOpenRaid integration |
 | `Auras.lua` | Party buff scanning for the Ready tab |
 | `Log.lua` | Central logging with deduplication |
-| `DebugUI.lua` / `DebugData.lua` | Debug console and data dump |
-| `ClickDebug.lua` | Optional click-hit tracing |
+| `debug/debug-ui.lua` / `debug/debug-data.lua` | Debug console and data dump |
+| `debug/click-debug.lua` | Optional click-hit tracing |
 | `UI.lua` | Shared frame/theme helpers |
 | `minimap/minimap-button.lua` | Minimap quick-access button |
 
@@ -97,7 +97,7 @@ The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons).
 ### TOC manifests
 
 - **`keys.toc`** — public release manifest (tracked in git). Omits debug console and `*-logging.lua` modules.
-- **`mythic-keys.toc`** — local dev manifest (gitignored). Loads everything, including `DebugUI.lua`, `ClickDebug.lua`, and module logging.
+- **`mythic-keys.toc`** — local dev manifest (gitignored). Loads everything, including `debug/` and module logging.
 
 For local development, copy or symlink `mythic-keys.toc` as your active TOC (WoW loads the folder name or whichever `.toc` matches the addon directory).
 

@@ -8,6 +8,120 @@ Log.listeners = Log.listeners or {}
 Log.maxEntries = 500
 Log.dedupeCache = Log.dedupeCache or {}
 
+Log.STATUS = {
+    INFO = "info",
+    WARN = "warn",
+    ERROR = "error",
+    DEBUG = "debug",
+}
+
+Log.FEATURE = {
+    CORE = "CORE",
+    PARTY_SYNC = "SYNC",
+    INTEGRATIONS = "EXTK",
+    TELEPORT_BAR = "TPBR",
+    PARTY_COMPLETE = "PCMP",
+    MINIMAP = "MINI",
+    BUFFS_DEBUFFS = "B&DB",
+    DEBUG = "DBUG",
+    CLICK_DEBUG = "CLIK",
+}
+
+local function ResolveCaller(level)
+    if not debug or not debug.getinfo then
+        return nil
+    end
+
+    local info = debug.getinfo(level or 2, "n")
+    if info and info.name and info.name ~= "" then
+        return info.name
+    end
+
+    return nil
+end
+
+function Log:FormatOrigin(entry)
+    local code = entry.featureCode or self.FEATURE.CORE
+    if entry.source and entry.source ~= "" then
+        return code .. "/" .. entry.source
+    end
+    return code
+end
+
+local STATUS_COLORS = {
+    [Log.STATUS.ERROR] = "ff6666",
+    [Log.STATUS.WARN] = "ffcc44",
+    [Log.STATUS.INFO] = "ffffff",
+    [Log.STATUS.DEBUG] = "aaaaaa",
+}
+
+local function NormalizeStatus(status)
+    status = type(status) == "string" and status:lower() or Log.STATUS.INFO
+    if not STATUS_COLORS[status] then
+        return Log.STATUS.INFO
+    end
+    return status
+end
+
+local function NormalizeFeatureCode(featureCode)
+    if type(featureCode) ~= "string" or featureCode == "" then
+        return Log.FEATURE.CORE
+    end
+    return featureCode
+end
+
+local function AppendEntry(log, entry, dedupeKey, dedupeWindow)
+    if dedupeKey then
+        local now = GetTime()
+        local lastAt = log.dedupeCache[dedupeKey]
+        if lastAt and (now - lastAt) < (dedupeWindow or 2) then
+            return
+        end
+        log.dedupeCache[dedupeKey] = now
+    end
+
+    table.insert(log.entries, entry)
+
+    while #log.entries > log.maxEntries do
+        table.remove(log.entries, 1)
+    end
+
+    for _, listener in ipairs(log.listeners) do
+        listener(entry)
+    end
+end
+
+function Log:WriteEvent(featureCode, status, payload, options)
+    if type(payload) ~= "string" or payload == "" then
+        return
+    end
+
+    featureCode = NormalizeFeatureCode(featureCode)
+    status = NormalizeStatus(status)
+    options = options or {}
+
+    local source = options.source
+    if not source then
+        source = ResolveCaller(2)
+    end
+
+    local entry = {
+        time = date("%H:%M:%S"),
+        featureCode = featureCode,
+        source = source,
+        status = status,
+        payload = payload,
+        message = payload,
+    }
+
+    local dedupeKey = options.dedupeKey
+    if dedupeKey == nil and options.dedupe ~= false then
+        dedupeKey = string.format("%s:%s:%s:%s", featureCode, source or "", status, payload)
+    end
+
+    AppendEntry(self, entry, dedupeKey, options.dedupeWindow)
+end
+
 function Log:SafeValue(value)
     if value == nil then
         return nil
@@ -77,37 +191,18 @@ function Log:LogPartyCompleteSnapshot()
 end
 
 function Log:FormatEntry(entry)
-    return string.format("[%s] %s", entry.time, entry.message)
-end
-
-function Log:Add(message, dedupeKey, dedupeWindow)
-    if type(message) ~= "string" or message == "" then
-        return
-    end
-
-    if dedupeKey then
-        local now = GetTime()
-        local lastAt = self.dedupeCache[dedupeKey]
-        if lastAt and (now - lastAt) < (dedupeWindow or 2) then
-            return
-        end
-        self.dedupeCache[dedupeKey] = now
-    end
-
-    local entry = {
-        time = date("%H:%M:%S"),
-        message = message,
-    }
-
-    table.insert(self.entries, entry)
-
-    while #self.entries > self.maxEntries do
-        table.remove(self.entries, 1)
-    end
-
-    for _, listener in ipairs(self.listeners) do
-        listener(entry)
-    end
+    local status = entry.status or Log.STATUS.INFO
+    local color = STATUS_COLORS[status] or STATUS_COLORS[Log.STATUS.INFO]
+    local origin = self:FormatOrigin(entry)
+    local payload = entry.payload or entry.message or ""
+    return string.format(
+        "|cffcccccc[%s]|r |cff%s%s|r |cff888888(%s)|r %s",
+        entry.time or "??:??:??",
+        color,
+        origin,
+        status,
+        payload
+    )
 end
 
 function Log:FormatKeystone(key)
@@ -121,10 +216,15 @@ function Log:LogKeystone(sender, key)
 
     local shortName = Ambiguate(sender, "short")
     local summary = self:FormatKeystone(key)
-    self:Add(
+    self:WriteEvent(
+        self.FEATURE.PARTY_SYNC,
+        self.STATUS.INFO,
         string.format("%s: %s", shortName, summary),
-        "keystone:" .. shortName .. ":" .. summary,
-        10
+        {
+            source = "LogKeystone",
+            dedupeKey = "keystone:" .. shortName .. ":" .. summary,
+            dedupeWindow = 10,
+        }
     )
 end
 
@@ -189,8 +289,12 @@ function Log:PrintError(message, context)
 end
 
 function Log:LogError(message, context, dedupeKey)
-    local text = self:FormatError(message, context)
-    self:Add("|cffff6666" .. text .. "|r", dedupeKey or ("error:" .. text), 1)
+    local payload = self:FormatError(message, context)
+    self:WriteEvent(self.FEATURE.CORE, self.STATUS.ERROR, payload, {
+        source = context or "LogError",
+        dedupeKey = dedupeKey or ("error:" .. payload),
+        dedupeWindow = 1,
+    })
     self:PrintError(message, context)
 end
 
@@ -256,4 +360,3 @@ end
 
 Log:InstallErrorHandler()
 Log:InstallActionBlockedHandler()
-

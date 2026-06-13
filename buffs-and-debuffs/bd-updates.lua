@@ -76,7 +76,14 @@ end
 function Updates:Trace(message, dedupeKey, dedupeWindow)
     local aurasLog = Log()
     if aurasLog and aurasLog.LogUpdate then
-        aurasLog:LogUpdate(message, dedupeKey, dedupeWindow)
+        local source = "Trace"
+        if debug and debug.getinfo then
+            local info = debug.getinfo(2, "n")
+            if info and info.name and info.name ~= "" then
+                source = info.name
+            end
+        end
+        aurasLog:LogUpdate(message, dedupeKey, dedupeWindow, source)
     end
 end
 

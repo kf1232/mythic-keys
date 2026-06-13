@@ -12,3 +12,10 @@ Tracks current-season consumables and party buffs for the Ready tab. Maintains M
 - **Party buff list** — text column of buff names the player applied to each member (or “—” when none)
 - **Ready payload sync** — repair, food, flask, oil, and ready flag broadcast to other Key users in the group
 - **Live refresh** — consumable columns update while the party panel is open and the Ready tab is active
+
+## Logging
+
+- **Code:** `B&DB`
+- **Write API:** `KeyLog:WriteEvent(KeyLog.FEATURE.BUFFS_DEBUFFS, status, payload, { source = "FunctionName" })`
+- **Module helpers:** `bd-logging.lua` (`Write`, `LogUpdate`, …) and `bd-updates.lua` (`Trace` forwards the calling function name)
+- **Example line:** `[12:34:56] B&DB/SafeRegisterEvent (debug) UNIT_AURA registration failed`

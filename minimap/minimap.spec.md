@@ -11,3 +11,10 @@ Quick access to the party panel from the World Map minimap. Provides a draggable
 - **Open debug console** — right click opens `/keyf debug` when the debug module is present
 - **Drag to reposition** — button moves around the minimap edge; angle persists in saved variables
 - **Tooltip** — hover text describing click actions
+
+## Logging
+
+- **Code:** `MINI`
+- **Write API:** `KeyLog:WriteEvent(KeyLog.FEATURE.MINIMAP, status, payload, { source = "FunctionName" })`
+- **Module helper:** `minimap-logging.lua` (`Log`, `LogClick`, `LogSnapshot`, …)
+- **Example line:** `[12:34:56] MINI/LogClick (debug) click LeftButton -> toggle party list`

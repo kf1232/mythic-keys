@@ -11,11 +11,15 @@ function ClickDebug:IsEnabled()
 end
 
 function ClickDebug:Log(message, label)
-    if not self.enabled or not KeyLog or not KeyLog.Add then
+    if not self.enabled or not KeyLog or not KeyLog.WriteEvent then
         return
     end
 
-    KeyLog:Add(message, "click:" .. (label or message), 0.05)
+    KeyLog:WriteEvent(KeyLog.FEATURE.CLICK_DEBUG, KeyLog.STATUS.DEBUG, message, {
+        source = label or "Log",
+        dedupeKey = "click:" .. (label or message),
+        dedupeWindow = 0.05,
+    })
 end
 
 function ClickDebug:LogAction(label, detail)

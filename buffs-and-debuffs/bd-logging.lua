@@ -10,6 +10,35 @@ local function Log()
     return KeyLog
 end
 
+local FEATURE = KeyLog and KeyLog.FEATURE and KeyLog.FEATURE.BUFFS_DEBUFFS or "B&DB"
+
+local function Write(status, payload, dedupeKey, dedupeWindow, source)
+    local keyLog = Log()
+    if not keyLog or not keyLog.WriteEvent then
+        return
+    end
+
+    local options = {}
+    if dedupeKey then
+        options.dedupeKey = dedupeKey
+        if dedupeWindow then
+            options.dedupeWindow = dedupeWindow
+        end
+    else
+        options.dedupe = false
+    end
+
+    options.source = source
+    if not options.source and debug and debug.getinfo then
+        local info = debug.getinfo(2, "n")
+        if info and info.name and info.name ~= "" then
+            options.source = info.name
+        end
+    end
+
+    keyLog:WriteEvent(FEATURE, status, payload, options)
+end
+
 local function Auras()
     return KeyAuras
 end
@@ -211,13 +240,12 @@ function AurasLog:ShouldLogUpdates()
     return KeyDebugUI and KeyDebugUI.IsShown and KeyDebugUI:IsShown()
 end
 
-function AurasLog:LogUpdate(message, dedupeKey, dedupeWindow)
-    local keyLog = Log()
-    if not keyLog or not self:ShouldLogUpdates() then
+function AurasLog:LogUpdate(message, dedupeKey, dedupeWindow, source)
+    if not self:ShouldLogUpdates() then
         return
     end
 
-    keyLog:Add("BD update: " .. message, dedupeKey, dedupeWindow)
+    Write(KeyLog.STATUS.DEBUG, message, dedupeKey, dedupeWindow, source or "LogUpdate")
 end
 
 function AurasLog:FormatUnitList(units)
@@ -271,7 +299,7 @@ function AurasLog:LogConsumableSummary(unit)
         return
     end
     if not auras or not auras.GetConsumableStatus then
-        keyLog:Add("  consumables: unavailable (KeyAuras missing)")
+        Write(KeyLog.STATUS.DEBUG, "  consumables: unavailable (KeyAuras missing)")
         return
     end
 
@@ -279,7 +307,7 @@ function AurasLog:LogConsumableSummary(unit)
         foodIcon, foodHearty, oilIcon, flaskIcon, flaskQualityTier, _, oilQualityTier,
         foodEating, foodEatingLabel, foodEatingIcon = auras:GetConsumableStatus(unit)
 
-    keyLog:Add(string.format(
+    Write(KeyLog.STATUS.DEBUG, string.format(
         "  food: ready=%s%s icon=%s hearty=%s eating=%s%s",
         food and "yes" or "no",
         foodLabel and (" (" .. foodLabel .. ")") or "",
@@ -289,12 +317,12 @@ function AurasLog:LogConsumableSummary(unit)
         foodEatingLabel and (" (" .. foodEatingLabel .. ")") or ""
     ))
     if foodEating then
-        keyLog:Add(string.format(
+        Write(KeyLog.STATUS.DEBUG, string.format(
             "  food eating icon=%s",
             self:FormatOptionalIcon(foodEatingIcon)
         ))
     end
-    keyLog:Add(string.format(
+    Write(KeyLog.STATUS.DEBUG, string.format(
         "  flask: ready=%s detected=%s%s icon=%s quality=%s",
         flaskReady and "yes" or "no",
         flaskIcon and "yes" or "no",
@@ -302,7 +330,7 @@ function AurasLog:LogConsumableSummary(unit)
         self:FormatOptionalIcon(flaskIcon),
         tostring(flaskQualityTier or "nil")
     ))
-    keyLog:Add(string.format(
+    Write(KeyLog.STATUS.DEBUG, string.format(
         "  oil: %s%s icon=%s quality=%s",
         oil and "yes" or "no",
         oilLabel and (" (" .. oilLabel .. ")") or "",
@@ -317,14 +345,14 @@ function AurasLog:LogSpellIndex(title, index)
         return
     end
 
-    keyLog:Add(title)
+    Write(KeyLog.STATUS.DEBUG, title)
     if not index or #index == 0 then
-        keyLog:Add("  (empty)")
+        Write(KeyLog.STATUS.DEBUG, "  (empty)")
         return
     end
 
     for _, item in ipairs(index) do
-        keyLog:Add(string.format("  #%s = %s", tostring(item.spellId), item.label or "?"))
+        Write(KeyLog.STATUS.DEBUG, string.format("  #%s = %s", tostring(item.spellId), item.label or "?"))
     end
 end
 
@@ -335,7 +363,7 @@ function AurasLog:LogConsumableDiagnostics(unit)
         return
     end
     if not auras or not auras.GetConsumableDiagnostics then
-        keyLog:Add("Consumable diagnostics: unavailable (KeyAuras missing)")
+        Write(KeyLog.STATUS.DEBUG, "Consumable diagnostics: unavailable (KeyAuras missing)")
         return
     end
 
@@ -343,12 +371,12 @@ function AurasLog:LogConsumableDiagnostics(unit)
     local unitLabel = keyLog:SafeValue(UnitName(unit)) or unit
     local diagnostics = auras:GetConsumableDiagnostics(unit)
 
-    keyLog:Add(string.format("--- Consumable diagnostics (%s) ---", unitLabel))
+    Write(KeyLog.STATUS.DEBUG, string.format("--- Consumable diagnostics (%s) ---", unitLabel))
 
-    keyLog:Add("Known flasks (data):")
+    Write(KeyLog.STATUS.DEBUG, "Known flasks (data):")
     for _, flask in ipairs(diagnostics.catalog.flasks or {}) do
         local ready = flask.countsForReady == false and "ready=no" or "ready=yes"
-        keyLog:Add(string.format(
+        Write(KeyLog.STATUS.DEBUG, string.format(
             "  %s spellId=%s icon=%s %s",
             flask.label or "?",
             tostring(flask.spellId or "nil"),
@@ -357,9 +385,9 @@ function AurasLog:LogConsumableDiagnostics(unit)
         ))
     end
 
-    keyLog:Add("Known phials (data):")
+    Write(KeyLog.STATUS.DEBUG, "Known phials (data):")
     for _, phial in ipairs(diagnostics.catalog.phials or {}) do
-        keyLog:Add(string.format(
+        Write(KeyLog.STATUS.DEBUG, string.format(
             "  %s spellId=%s icon=%s",
             phial.label or "?",
             tostring(phial.spellId or "nil"),
@@ -367,11 +395,11 @@ function AurasLog:LogConsumableDiagnostics(unit)
         ))
     end
 
-    keyLog:Add("Known oils/stones (data):")
+    Write(KeyLog.STATUS.DEBUG, "Known oils/stones (data):")
     for _, oil in ipairs(diagnostics.catalog.oils or {}) do
         local spellIds = oil.spellIds and table.concat(oil.spellIds, ",") or tostring(oil.spellId or "nil")
         local enchantIds = oil.enchantIds and table.concat(oil.enchantIds, ",") or "nil"
-        keyLog:Add(string.format(
+        Write(KeyLog.STATUS.DEBUG, string.format(
             "  %s spellIds=%s enchantIds=%s icon=%s",
             oil.label or "?",
             spellIds,
@@ -389,29 +417,29 @@ function AurasLog:LogConsumableDiagnostics(unit)
         for _, tier in ipairs(diagnostics.catalog.qualityTiers) do
             tierParts[#tierParts + 1] = string.format("%s>=%s", tier.id, tier.minPoint)
         end
-        keyLog:Add("Flask quality tiers: " .. table.concat(tierParts, ", "))
+        Write(KeyLog.STATUS.DEBUG, "Flask quality tiers: " .. table.concat(tierParts, ", "))
     end
 
     if not UnitExists(unit) then
-        keyLog:Add("Runtime: unit does not exist")
-        keyLog:Add("--- end consumable diagnostics ---")
+        Write(KeyLog.STATUS.DEBUG, "Runtime: unit does not exist")
+        Write(KeyLog.STATUS.DEBUG, "--- end consumable diagnostics ---")
         return
     end
 
-    keyLog:Add("Detected status (GetConsumableStatus):")
+    Write(KeyLog.STATUS.DEBUG, "Detected status (GetConsumableStatus):")
     self:LogConsumableSummary(unit)
 
     if KeyReadyCheck and KeyReadyCheck.GetMemberStatus then
         local uiStatus = KeyReadyCheck:GetMemberStatus(unit)
-        keyLog:Add("Ready UI fields:")
-        keyLog:Add(string.format(
+        Write(KeyLog.STATUS.DEBUG, "Ready UI fields:")
+        Write(KeyLog.STATUS.DEBUG, string.format(
             "  foodOk=%s foodEating=%s flaskOk=%s oilOk=%s",
             tostring(uiStatus.foodOk),
             tostring(uiStatus.foodEating == true),
             tostring(uiStatus.flaskOk),
             tostring(uiStatus.oilOk)
         ))
-        keyLog:Add(string.format(
+        Write(KeyLog.STATUS.DEBUG, string.format(
             "  foodIcon=%s flaskIcon=%s oilIcon=%s flaskQualityTier=%s oilQualityTier=%s foodHearty=%s",
             self:FormatOptionalIcon(uiStatus.foodIcon),
             self:FormatOptionalIcon(uiStatus.flaskIcon),
@@ -424,7 +452,7 @@ function AurasLog:LogConsumableDiagnostics(unit)
 
     if diagnostics.weaponOil then
         local weaponOil = diagnostics.weaponOil
-        keyLog:Add(string.format(
+        Write(KeyLog.STATUS.DEBUG, string.format(
             "Weapon enchant: mh=%s oh=%s enchantId=%s known=%s quality=%s",
             tostring(weaponOil.hasMainHand),
             tostring(weaponOil.hasOffHand),
@@ -434,7 +462,7 @@ function AurasLog:LogConsumableDiagnostics(unit)
         ))
     end
 
-    keyLog:Add(string.format("Helpful aura scan (%d):", #(diagnostics.auraMatches or {})))
+    Write(KeyLog.STATUS.DEBUG, string.format("Helpful aura scan (%d):", #(diagnostics.auraMatches or {})))
     for _, match in ipairs(diagnostics.auraMatches or {}) do
         local tags = {}
         if match.knownFlask then
@@ -450,7 +478,7 @@ function AurasLog:LogConsumableDiagnostics(unit)
             tags[#tags + 1] = "classify:" .. match.classifyKind
         end
 
-        keyLog:Add(string.format(
+        Write(KeyLog.STATUS.DEBUG, string.format(
             "  [%s] %s #%s pts=%s %s",
             tostring(match.index or "?"),
             match.name or "?",
@@ -460,7 +488,7 @@ function AurasLog:LogConsumableDiagnostics(unit)
         ))
     end
 
-    keyLog:Add("--- end consumable diagnostics ---")
+    Write(KeyLog.STATUS.DEBUG, "--- end consumable diagnostics ---")
 end
 
 function AurasLog:LogUnitAuras(unit, reason)
@@ -473,7 +501,7 @@ function AurasLog:LogUnitAuras(unit, reason)
     local debuffs = self:CollectAuras(unit, "HARMFUL")
     local unitLabel = keyLog:SafeValue(UnitName(unit)) or unit
 
-    keyLog:Add(string.format(
+    Write(KeyLog.STATUS.DEBUG, string.format(
         "%s %s — %d buff(s), %d debuff(s)",
         reason or "Auras",
         unitLabel,
@@ -484,6 +512,6 @@ function AurasLog:LogUnitAuras(unit, reason)
     self:LogConsumableSummary(unit)
 
     for _, entry in ipairs(buffs) do
-        keyLog:Add("  + " .. self:GetAuraLabel(entry.aura, entry.rawAura))
+        Write(KeyLog.STATUS.DEBUG, "  + " .. self:GetAuraLabel(entry.aura, entry.rawAura))
     end
 end

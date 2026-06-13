@@ -321,7 +321,9 @@ function DebugUI:ShowConsole()
     if KeyClickDebug and KeyClickDebug.Enable then
         KeyClickDebug:Enable()
     end
-    KeyLog:Add("Debug console opened.")
+    KeyLog:WriteEvent(KeyLog.FEATURE.DEBUG, KeyLog.STATUS.INFO, "Debug console opened.", {
+        source = "ShowConsole",
+    })
     if KeyBDUpdates and KeyBDUpdates.RegisterAuraChannels then
         KeyBDUpdates:RegisterAuraChannels("debug-open")
     end
@@ -348,4 +350,3 @@ end
 function DebugUI:IsShown()
     return self.frame and self.frame:IsShown()
 end
-

@@ -3,6 +3,8 @@ local ADDON_NAME = ...
 KeyPartyCompleteLog = KeyPartyCompleteLog or {}
 local PartyCompleteLog = KeyPartyCompleteLog
 
+local FEATURE = KeyLog and KeyLog.FEATURE and KeyLog.FEATURE.PARTY_COMPLETE or "PCMP"
+
 local function Log()
     return KeyLog
 end
@@ -11,17 +13,36 @@ local function Teleports()
     return KeyTeleports
 end
 
+local function WriteEvent(status, payload, options)
+    local keyLog = Log()
+    if not keyLog or not keyLog.WriteEvent then
+        return
+    end
+
+    options = options or {}
+    if not options.source and debug and debug.getinfo then
+        local info = debug.getinfo(2, "n")
+        if info and info.name and info.name ~= "" then
+            options.source = info.name
+        end
+    end
+
+    keyLog:WriteEvent(FEATURE, status, payload, options)
+end
+
 function PartyCompleteLog:ShouldLogUpdates()
     return KeyDebugUI and KeyDebugUI.IsShown and KeyDebugUI:IsShown()
 end
 
 function PartyCompleteLog:LogUpdate(message, dedupeKey, dedupeWindow)
-    local keyLog = Log()
-    if not keyLog or not self:ShouldLogUpdates() then
+    if not self:ShouldLogUpdates() then
         return
     end
 
-    keyLog:Add("Party complete: " .. message, dedupeKey, dedupeWindow)
+    WriteEvent(KeyLog.STATUS.DEBUG, message, {
+        dedupeKey = dedupeKey,
+        dedupeWindow = dedupeWindow,
+    })
 end
 
 function PartyCompleteLog:LogLayout(contentWidth, memberCount, tableHeight, viewportHeight, teleportHeight)
@@ -62,23 +83,21 @@ function PartyCompleteLog:LogInit()
 end
 
 function PartyCompleteLog:LogSnapshot()
-    local keyLog = Log()
     local teleports = Teleports()
-    if not keyLog or not teleports then
+    if not teleports then
         return
     end
 
-    keyLog:Add("Party complete:")
-    keyLog:Add(string.format(
-        "  dungeons=%d maxRows=%d table=%s",
+    WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+        "dungeons=%d maxRows=%d table=%s",
         teleports.SLOT_COUNT or 0,
         teleports.MAX_BEST_ROWS or 0,
         teleports.bestTable and "yes" or "no"
     ))
 
     if teleports.bestTable then
-        keyLog:Add(string.format(
-            "  tableSize=%dx%d parent=%s",
+        WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+            "tableSize=%dx%d parent=%s",
             teleports.bestTable:GetWidth(),
             teleports.bestTable:GetHeight(),
             teleports.bestTable:GetParent() and teleports.bestTable:GetParent():GetName() or "(none)"
@@ -87,8 +106,8 @@ function PartyCompleteLog:LogSnapshot()
 
     local pane = KeyPartyUI and KeyPartyUI.frame and KeyPartyUI.frame.completionsPane
     if pane and pane.scrollFrame then
-        keyLog:Add(string.format(
-            "  scroll=%dx%d child=%dx%d",
+        WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+            "scroll=%dx%d child=%dx%d",
             pane.scrollFrame:GetWidth(),
             pane.scrollFrame:GetHeight(),
             pane.scrollChild and pane.scrollChild:GetWidth() or 0,

@@ -3,6 +3,24 @@ local ADDON_NAME = ...
 KeyDebugData = KeyDebugData or {}
 local DebugData = KeyDebugData
 
+local FEATURE = KeyLog and KeyLog.FEATURE and KeyLog.FEATURE.DEBUG or "DBUG"
+
+local function WriteEvent(status, payload, options)
+    if not KeyLog or not KeyLog.WriteEvent then
+        return
+    end
+
+    options = options or {}
+    if not options.source and debug and debug.getinfo then
+        local info = debug.getinfo(2, "n")
+        if info and info.name and info.name ~= "" then
+            options.source = info.name
+        end
+    end
+
+    KeyLog:WriteEvent(FEATURE, status, payload, options)
+end
+
 function DebugData:ShortName(sender)
     if not sender or sender == "" then
         return "?"
@@ -63,14 +81,10 @@ function DebugData:GetGroupSummary()
 end
 
 function DebugData:DumpPrimaryCache(title, cache, formatter)
-    if not KeyLog then
-        return
-    end
-
-    KeyLog:Add(title)
+    WriteEvent(KeyLog.STATUS.DEBUG, title, { dedupe = false })
 
     if not cache or not next(cache) then
-        KeyLog:Add("  (empty)")
+        WriteEvent(KeyLog.STATUS.DEBUG, "  (empty)", { dedupe = false })
         return
     end
 
@@ -83,30 +97,32 @@ function DebugData:DumpPrimaryCache(title, cache, formatter)
     end)
 
     for _, sender in ipairs(senders) do
-        KeyLog:Add(string.format("  %s: %s", self:ShortName(sender), formatter(cache[sender])))
+        WriteEvent(KeyLog.STATUS.DEBUG, string.format("  %s: %s", self:ShortName(sender), formatter(cache[sender])), {
+            dedupe = false,
+        })
     end
 end
 
 function DebugData:DumpToLog()
-    if not KeyLog or not KeyLog.Add then
+    if not KeyLog or not KeyLog.WriteEvent then
         return
     end
 
-    KeyLog:Add("--- Key data dump ---")
+    WriteEvent(KeyLog.STATUS.INFO, "--- Key data dump ---", { dedupe = false })
 
-    KeyLog:Add("Group: " .. self:GetGroupSummary())
+    WriteEvent(KeyLog.STATUS.DEBUG, "Group: " .. self:GetGroupSummary(), { dedupe = false })
 
     if KeyExternalKeystones and KeyExternalKeystones.GetProviderSummary then
-        KeyLog:Add("External keystones: " .. KeyExternalKeystones:GetProviderSummary())
+        WriteEvent(KeyLog.STATUS.DEBUG, "External keystones: " .. KeyExternalKeystones:GetProviderSummary(), { dedupe = false })
     end
 
     if KeyPartyUI and KeyPartyUI.activeTab then
-        KeyLog:Add("Active tab: " .. tostring(KeyPartyUI.activeTab))
+        WriteEvent(KeyLog.STATUS.DEBUG, "Active tab: " .. tostring(KeyPartyUI.activeTab), { dedupe = false })
     end
 
     if KeyKeystones then
         local ownKey = KeyKeystones:GetOwnKeystone()
-        KeyLog:Add("Player keystone: " .. KeyKeystones:FormatKey(ownKey))
+        WriteEvent(KeyLog.STATUS.DEBUG, "Player keystone: " .. KeyKeystones:FormatKey(ownKey), { dedupe = false })
 
         self:DumpPrimaryCache("Party keystones:", KeyKeystones.primaryCache, function(entry)
             return KeyKeystones:FormatKey(entry)
@@ -118,7 +134,9 @@ function DebugData:DumpToLog()
     end
 
     if KeyReadyCheck then
-        KeyLog:Add(string.format("Player ready toggle: %s", KeyReadyCheck:GetPlayerReady() and "yes" or "no"))
+        WriteEvent(KeyLog.STATUS.DEBUG, string.format("Player ready toggle: %s", KeyReadyCheck:GetPlayerReady() and "yes" or "no"), {
+            dedupe = false,
+        })
 
         self:DumpPrimaryCache("Ready payloads:", KeyReadyCheck.primaryReadyCache, function(entry)
             return self:FormatReadySummary(entry)
@@ -146,12 +164,12 @@ function DebugData:DumpToLog()
     end
 
     if KeyPartySync then
-        KeyLog:Add("Sync payloads:")
-        KeyLog:Add("  lastKey: " .. tostring(KeyPartySync.lastPayload or "(none)"))
-        KeyLog:Add("  lastBest: " .. tostring(KeyPartySync.lastBestPayload or "(none)"))
-        KeyLog:Add("  lastReady: " .. tostring(KeyPartySync.lastReadyPayload or "(none)"))
-        KeyLog:Add("  lastReadyState: " .. tostring(KeyPartySync.lastReadyStatePayload or "(none)"))
+        WriteEvent(KeyLog.STATUS.DEBUG, "Sync payloads:", { dedupe = false })
+        WriteEvent(KeyLog.STATUS.DEBUG, "  lastKey: " .. tostring(KeyPartySync.lastPayload or "(none)"), { dedupe = false })
+        WriteEvent(KeyLog.STATUS.DEBUG, "  lastBest: " .. tostring(KeyPartySync.lastBestPayload or "(none)"), { dedupe = false })
+        WriteEvent(KeyLog.STATUS.DEBUG, "  lastReady: " .. tostring(KeyPartySync.lastReadyPayload or "(none)"), { dedupe = false })
+        WriteEvent(KeyLog.STATUS.DEBUG, "  lastReadyState: " .. tostring(KeyPartySync.lastReadyStatePayload or "(none)"), { dedupe = false })
     end
 
-    KeyLog:Add("--- end dump ---")
+    WriteEvent(KeyLog.STATUS.INFO, "--- end dump ---", { dedupe = false })
 end

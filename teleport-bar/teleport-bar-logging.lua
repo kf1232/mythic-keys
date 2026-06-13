@@ -3,6 +3,8 @@ local ADDON_NAME = ...
 KeyTeleportBarLog = KeyTeleportBarLog or {}
 local TeleportBarLog = KeyTeleportBarLog
 
+local FEATURE = KeyLog and KeyLog.FEATURE and KeyLog.FEATURE.TELEPORT_BAR or "TPBR"
+
 local function Log()
     return KeyLog
 end
@@ -11,12 +13,24 @@ local function Teleports()
     return KeyTeleports
 end
 
-function TeleportBarLog:LogTeleport(spellID, reason, extra)
+local function WriteEvent(status, payload, options)
     local keyLog = Log()
-    if not keyLog then
+    if not keyLog or not keyLog.WriteEvent then
         return
     end
 
+    options = options or {}
+    if not options.source and debug and debug.getinfo then
+        local info = debug.getinfo(2, "n")
+        if info and info.name and info.name ~= "" then
+            options.source = info.name
+        end
+    end
+
+    keyLog:WriteEvent(FEATURE, status, payload, options)
+end
+
+function TeleportBarLog:LogTeleport(spellID, reason, extra)
     local teleports = Teleports()
     local dungeon = teleports and teleports.spellToDungeon and teleports.spellToDungeon[spellID]
     if not dungeon or not teleports then
@@ -24,23 +38,30 @@ function TeleportBarLog:LogTeleport(spellID, reason, extra)
     end
 
     local name = teleports:GetDungeonName(dungeon)
-    local message
+    local payload
+    local status = KeyLog.STATUS.INFO
 
     if reason == "unavailable" then
-        message = string.format("Teleport unavailable: %s", name)
+        payload = string.format("Teleport unavailable: %s", name)
+        status = KeyLog.STATUS.WARN
     elseif reason == "cooldown" then
-        message = string.format(
+        payload = string.format(
             "Teleport on cooldown: %s (%s)",
             name,
             SecondsToTime(math.ceil(extra or 0))
         )
+        status = KeyLog.STATUS.WARN
     elseif reason == "error" then
-        message = string.format("Teleport failed: %s (%s)", name, extra or "unknown error")
+        payload = string.format("Teleport failed: %s (%s)", name, extra or "unknown error")
+        status = KeyLog.STATUS.ERROR
     else
-        message = string.format("Teleporting to %s", name)
+        payload = string.format("Teleporting to %s", name)
     end
 
-    keyLog:Add(message, "teleport:" .. tostring(spellID) .. ":" .. tostring(reason), 0.5)
+    WriteEvent(status, payload, {
+        dedupeKey = "teleport:" .. tostring(spellID) .. ":" .. tostring(reason),
+        dedupeWindow = 0.5,
+    })
 end
 
 function TeleportBarLog:ShouldLogUpdates()
@@ -48,12 +69,14 @@ function TeleportBarLog:ShouldLogUpdates()
 end
 
 function TeleportBarLog:LogUpdate(message, dedupeKey, dedupeWindow)
-    local keyLog = Log()
-    if not keyLog or not self:ShouldLogUpdates() then
+    if not self:ShouldLogUpdates() then
         return
     end
 
-    keyLog:Add("Teleport bar: " .. message, dedupeKey, dedupeWindow)
+    WriteEvent(KeyLog.STATUS.DEBUG, message, {
+        dedupeKey = dedupeKey,
+        dedupeWindow = dedupeWindow,
+    })
 end
 
 function TeleportBarLog:LogBarLayout(contentWidth, barHeight, slotSize)
@@ -79,23 +102,21 @@ function TeleportBarLog:LogInit()
 end
 
 function TeleportBarLog:LogSnapshot()
-    local keyLog = Log()
     local teleports = Teleports()
-    if not keyLog or not teleports then
+    if not teleports then
         return
     end
 
-    keyLog:Add("Teleport bar:")
-    keyLog:Add(string.format(
-        "  slots=%d bar=%s contentWidth=%d",
+    WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+        "slots=%d bar=%s contentWidth=%d",
         teleports.SLOT_COUNT or 0,
         teleports.bar and "yes" or "no",
         teleports:GetDefaultContentWidth()
     ))
 
     if teleports.bar then
-        keyLog:Add(string.format(
-            "  size=%dx%d parent=%s",
+        WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+            "size=%dx%d parent=%s",
             teleports.bar:GetWidth(),
             teleports.bar:GetHeight(),
             teleports.bar:GetParent() and teleports.bar:GetParent():GetName() or "(none)"

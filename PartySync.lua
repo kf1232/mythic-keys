@@ -71,10 +71,11 @@ function Sync:Send(message)
 
     local ok = pcall(C_ChatInfo.SendAddonMessage, self.PREFIX, message, self:GetChannel())
     if not ok then
-        KeyLog:Add(
+        KeyLog:WriteEvent(
+            KeyLog.FEATURE.PARTY_SYNC,
+            KeyLog.STATUS.WARN,
             "Party keystone share skipped (addon messages blocked).",
-            "sync:blocked",
-            30
+            { source = "SendAddonMessage", dedupeKey = "sync:blocked", dedupeWindow = 30 }
         )
     end
     return ok

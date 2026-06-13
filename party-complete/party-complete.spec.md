@@ -12,3 +12,10 @@ The M+ Completions tab content below the teleport bar: a scrollable season-bests
 - **Cell tooltips** — hover shows player, dungeon, and best level (or “no completed run this season”)
 - **Column alignment** — bests columns line up under the matching teleport-bar dungeon icons
 - **Scrollable list** — vertical scroll when the group has more than six members; pane height grows with visible rows
+
+## Logging
+
+- **Code:** `PCMP`
+- **Write API:** `KeyLog:WriteEvent(KeyLog.FEATURE.PARTY_COMPLETE, status, payload, { source = "FunctionName" })`
+- **Module helper:** `party-complete-logging.lua` (`WriteEvent`, `LogLayout`, `LogSnapshot`, …)
+- **Example line:** `[12:34:56] PCMP/LogLayout (debug) layout width=848 members=5 table=120 viewport=96 teleport=108`
