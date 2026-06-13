@@ -563,8 +563,15 @@ function Keystones:PickBestRun(intimeInfo, overtimeInfo)
     local level = 0
     local overTime = false
 
-    if intimeInfo and intimeInfo.level and intimeInfo.level > 0 then
-        level = intimeInfo.level
+    local intimeLevel = intimeInfo and intimeInfo.level
+    if self:IsAccessible(intimeLevel) and intimeLevel > 0 then
+        level = intimeLevel
+    end
+
+    local overtimeLevel = overtimeInfo and overtimeInfo.level
+    if self:IsAccessible(overtimeLevel) and overtimeLevel > level then
+        level = overtimeLevel
+        overTime = true
     end
 
     return level, overTime
@@ -635,10 +642,10 @@ function Keystones:ParseBestPayload(message)
         local dungeon = self:GetSeasonDungeons()[index]
         if dungeon and level then
             level = tonumber(level)
-            if level and level > 0 and tonumber(overTime) ~= 1 then
+            if level and level > 0 then
                 bests[dungeon.challengeModeID] = {
                     level = level,
-                    overTime = false,
+                    overTime = tonumber(overTime) == 1,
                 }
             end
         end
@@ -680,8 +687,8 @@ function Keystones:GetMemberBestForMap(unit, challengeModeID)
 
     local cached = self:LookupCachedBest(unit)
     local entry = cached and cached[challengeModeID]
-    if entry and entry.level and entry.level > 0 and not entry.overTime then
-        return entry.level, false
+    if entry and entry.level and entry.level > 0 then
+        return entry.level, entry.overTime and true or false
     end
 
     return 0, false
