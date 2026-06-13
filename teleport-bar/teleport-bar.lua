@@ -3,6 +3,10 @@ local ADDON_NAME = ...
 KeyTeleports = KeyTeleports or {}
 local Teleports = KeyTeleports
 
+if not Teleports.SEASON_DUNGEONS then
+    error("KeyTeleports.SEASON_DUNGEONS is missing. Load teleport-bar-data.lua before teleport-bar.lua.")
+end
+
 Teleports.COLUMNS = 8
 Teleports.SLOT_MIN = 25
 Teleports.SLOT_DEFAULT = 100
@@ -10,12 +14,8 @@ Teleports.SLOT_MAX = 150
 Teleports.SLOT_LABEL_MIN = 75
 Teleports.COMPACT_DOT_TEXTURE = "Interface\\Buttons\\WHITE8X8"
 Teleports.MAX_KEY_TOKENS = 40
-Teleports.MAX_BEST_ROWS = 40
-Teleports.BEST_ROW_GAP = 2
-Teleports.BEST_NAME_GAP = 2
 Teleports.LEADER_OUTLINE_SIZE = 3
 Teleports.LAYOUT_GAP = 4
-Teleports.OVERTIME_DESATURATION = 0.72
 -- Secure action button must sit above decorative slot children (labelBar +3, leaderOutline +4).
 Teleports.ACTION_FRAME_LEVEL_OFFSET = 50
 
@@ -59,20 +59,6 @@ function Teleports:IsCompactSlot(slotSize)
     return slotSize < self.SLOT_LABEL_MIN
 end
 
--- Midnight Season 1 M+ pool (MapChallengeMode.ID -> teleport spell)
-Teleports.SEASON_DUNGEONS = {
-    { challengeModeID = 558, spellID = 1254572, shortName = "Magisters'" },
-    { challengeModeID = 560, spellID = 1254559, shortName = "Maisara" },
-    { challengeModeID = 559, spellID = 1254563, shortName = "Nexus-Point" },
-    { challengeModeID = 557, spellID = 1254400, shortName = "Windrunner" },
-    { challengeModeID = 402, spellID = 393273, shortName = "Algeth'ar" },
-    { challengeModeID = 556, spellID = 1254555, shortName = "Pit of Saron" },
-    { challengeModeID = 239, spellID = 1254551, shortName = "Seat" },
-    { challengeModeID = 161, spellID = 159898, shortName = "Skyreach" },
-}
-
-Teleports.SLOT_COUNT = #Teleports.SEASON_DUNGEONS
-
 function Teleports:GetDefaultIcon()
     return Key and Key.DEFAULT_ICON or 134400
 end
@@ -99,6 +85,10 @@ function Teleports:GetDungeonDisplayName(challengeModeID, fallback)
         end
     end
     return fallback
+end
+
+function Teleports:GetDungeonName(dungeon)
+    return self:GetDungeonDisplayName(dungeon.challengeModeID, dungeon.shortName)
 end
 
 function Teleports:IsSpellKnown(spellID)
@@ -156,13 +146,15 @@ function Teleports:HandleTeleportClick(spellID)
     end
 
     if not self:IsSpellKnown(spellID) then
-        self:LogTeleport(spellID, "unavailable")
+        if KeyTeleportBarLog and KeyTeleportBarLog.LogTeleport then
+            KeyTeleportBarLog:LogTeleport(spellID, "unavailable")
+        end
         return
     end
 
     local remaining = self:GetSpellCooldownRemaining(spellID)
-    if remaining > 0 then
-        self:LogTeleport(spellID, "cooldown", remaining)
+    if remaining > 0 and KeyTeleportBarLog and KeyTeleportBarLog.LogTeleport then
+        KeyTeleportBarLog:LogTeleport(spellID, "cooldown", remaining)
     end
 end
 
@@ -634,221 +626,12 @@ function Teleports:LayoutBar(bar, contentWidth)
 
     local barHeight = (rows * slotSize) + ((rows - 1) * gap)
     bar:SetSize(contentWidth, barHeight)
+
+    if KeyTeleportBarLog and KeyTeleportBarLog.LogBarLayout then
+        KeyTeleportBarLog:LogBarLayout(contentWidth, barHeight, slotSize)
+    end
+
     return barHeight, slotSize, pitch
-end
-
-function Teleports:GetBestTableMetrics(contentWidth)
-    local _, _, slotSize = self:ComputeLayout(contentWidth)
-    local pitch = slotSize + self.LAYOUT_GAP
-    local rowHeight = math.max(16, math.floor(slotSize * 0.34))
-    local nameHeight = math.max(10, math.floor(slotSize * 0.16))
-    local rowPitch = nameHeight + self.BEST_NAME_GAP + rowHeight + self.BEST_ROW_GAP
-
-    return rowHeight, rowPitch, slotSize, pitch, nameHeight
-end
-
-function Teleports:GetBestTableHeight(memberCount, contentWidth)
-    if not memberCount or memberCount == 0 then
-        return 0
-    end
-
-    local rowHeight, rowPitch, _, _, nameHeight = self:GetBestTableMetrics(contentWidth)
-    local bandHeight = nameHeight + self.BEST_NAME_GAP + rowHeight
-    return (memberCount * bandHeight) + ((memberCount - 1) * self.BEST_ROW_GAP)
-end
-
-function Teleports:CreateBestCell(parent, justify)
-    local cell = CreateFrame("Frame", nil, parent)
-    cell.text = cell:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    justify = justify or "CENTER"
-    cell.text:SetJustifyH(justify)
-    if justify == "LEFT" then
-        cell.text:SetPoint("LEFT", cell, "LEFT", 2, 0)
-    else
-        cell.text:SetPoint("CENTER")
-    end
-    cell:EnableMouse(true)
-    cell:SetScript("OnEnter", function()
-        if not cell.tooltipTitle then
-            return
-        end
-        GameTooltip:SetOwner(cell, "ANCHOR_RIGHT")
-        GameTooltip:SetText(cell.tooltipTitle, 1, 1, 1)
-        if cell.tooltipBody then
-            GameTooltip:AddLine(cell.tooltipBody, 0.85, 0.85, 0.85)
-        end
-        GameTooltip:Show()
-    end)
-    cell:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-    return cell
-end
-
-function Teleports:EnsureBestTable(parent)
-    if self.bestTable then
-        for rowIndex = 1, self.MAX_BEST_ROWS do
-            local row = self.bestTable.rows[rowIndex]
-            if row and not row.name then
-                row.name = self:CreateBestCell(self.bestTable, "LEFT")
-                row.name:Hide()
-            end
-        end
-        return self.bestTable
-    end
-
-    local tableFrame = CreateFrame("Frame", nil, parent)
-    tableFrame.rows = {}
-
-    for rowIndex = 1, self.MAX_BEST_ROWS do
-        tableFrame.rows[rowIndex] = {
-            name = self:CreateBestCell(tableFrame, "LEFT"),
-        }
-        tableFrame.rows[rowIndex].name:Hide()
-        for colIndex = 1, self.SLOT_COUNT do
-            tableFrame.rows[rowIndex][colIndex] = self:CreateBestCell(tableFrame)
-            tableFrame.rows[rowIndex][colIndex]:Hide()
-        end
-    end
-
-    self.bestTable = tableFrame
-    return tableFrame
-end
-
-function Teleports:UpdateBestNameCell(cell, member, nameHeight)
-    if not cell or not cell.text then
-        return
-    end
-
-    local memberName = member and member.name or "Unknown"
-    local r, g, b = self:GetClassColor(member and member.classFilename)
-    local fontSize = math.max(7, math.floor((nameHeight or 10) * 0.85))
-
-    cell.text:SetFont("Fonts\\FRIZQT__.TTF", fontSize, "OUTLINE")
-    cell.text:SetText(memberName)
-    cell.text:SetTextColor(r, g, b)
-    cell.tooltipTitle = memberName
-    cell.tooltipBody = "Season best completions"
-end
-
-function Teleports:UpdateBestCell(cell, member, dungeon, level, overTime)
-    if not cell or not cell.text then
-        return
-    end
-
-    local classFilename = member and member.classFilename
-    local dungeonName = self:GetDungeonName(dungeon)
-    local memberName = member and member.name or "Unknown"
-
-    if not level or level == 0 then
-        cell.text:SetText("—")
-        cell.text:SetTextColor(0.45, 0.45, 0.45)
-        cell.tooltipTitle = string.format("%s — %s", memberName, dungeonName)
-        cell.tooltipBody = "No completed run this season"
-        return
-    end
-
-    local r, g, b = self:GetClassColor(classFilename)
-    if overTime then
-        local scale = self.OVERTIME_DESATURATION
-        r, g, b = r * scale, g * scale, b * scale
-    end
-
-    cell.text:SetText("+" .. tostring(level))
-    cell.text:SetTextColor(r, g, b)
-    cell.tooltipTitle = string.format("%s — %s", memberName, dungeonName)
-    cell.tooltipBody = overTime and string.format("Best: +%d (over time)", level) or string.format("Best: +%d", level)
-end
-
-function Teleports:LayoutBestTable(tableFrame, contentWidth, members)
-    if not tableFrame then
-        return 0
-    end
-
-    local rowHeight, rowPitch, slotSize, pitch, nameHeight = self:GetBestTableMetrics(contentWidth)
-    local memberCount = members and #members or 0
-
-    for rowIndex = 1, self.MAX_BEST_ROWS do
-        local row = tableFrame.rows[rowIndex]
-        if row.name then
-            row.name:Hide()
-        end
-        for colIndex = 1, self.SLOT_COUNT do
-            row[colIndex]:Hide()
-        end
-    end
-
-    if memberCount == 0 then
-        tableFrame:SetSize(contentWidth, 0)
-        return 0
-    end
-
-    local fontSize = math.max(8, math.floor(rowHeight * 0.72))
-
-    for rowIndex, member in ipairs(members) do
-        if rowIndex > self.MAX_BEST_ROWS then
-            break
-        end
-
-        local row = tableFrame.rows[rowIndex]
-        local y = -((rowIndex - 1) * rowPitch)
-        local cellY = y - nameHeight - self.BEST_NAME_GAP
-
-        row.name:SetSize(contentWidth, nameHeight)
-        row.name:ClearAllPoints()
-        row.name:SetPoint("TOPLEFT", tableFrame, "TOPLEFT", 0, y)
-        self:UpdateBestNameCell(row.name, member, nameHeight)
-        row.name:Show()
-
-        for colIndex, dungeon in ipairs(self.SEASON_DUNGEONS) do
-            local cell = row[colIndex]
-            local level, overTime = 0, false
-            if KeyKeystones and member.unit then
-                level, overTime = KeyKeystones:GetMemberBestForMap(member.unit, dungeon.challengeModeID)
-            end
-
-            cell:SetSize(slotSize, rowHeight)
-            cell:ClearAllPoints()
-            cell:SetPoint("TOPLEFT", tableFrame, "TOPLEFT", (colIndex - 1) * pitch, cellY)
-            cell.text:SetFont("Fonts\\FRIZQT__.TTF", fontSize, "OUTLINE")
-            self:UpdateBestCell(cell, member, dungeon, level, overTime)
-            cell:Show()
-        end
-    end
-
-    local tableHeight = self:GetBestTableHeight(memberCount, contentWidth)
-    tableFrame:SetSize(contentWidth, tableHeight)
-    return tableHeight
-end
-
-function Teleports:GetDungeonName(dungeon)
-    return self:GetDungeonDisplayName(dungeon.challengeModeID, dungeon.shortName)
-end
-
-function Teleports:LogTeleport(spellID, reason, extra)
-    local dungeon = self.spellToDungeon and self.spellToDungeon[spellID]
-    if not dungeon then
-        return
-    end
-
-    local name = self:GetDungeonName(dungeon)
-    local message
-
-    if reason == "unavailable" then
-        message = string.format("Teleport unavailable: %s", name)
-    elseif reason == "cooldown" then
-        message = string.format(
-            "Teleport on cooldown: %s (%s)",
-            name,
-            SecondsToTime(math.ceil(extra or 0))
-        )
-    elseif reason == "error" then
-        message = string.format("Teleport failed: %s (%s)", name, extra or "unknown error")
-    else
-        message = string.format("Teleporting to %s", name)
-    end
-
-    KeyLog:Add(message, "teleport:" .. tostring(spellID) .. ":" .. tostring(reason), 0.5)
 end
 
 function Teleports:RefreshActionButtons()
@@ -864,15 +647,23 @@ function Teleports:RefreshActionButtons()
     end
 end
 
-function Teleports:InitLogging()
-    if self.eventFrame then
-        return
-    end
-
+function Teleports:BuildSpellIndex()
     self.spellToDungeon = {}
     for _, dungeon in ipairs(self.SEASON_DUNGEONS) do
         self.spellToDungeon[dungeon.spellID] = dungeon
     end
+end
+
+function Teleports:IsSeasonTeleport(spellID)
+    return self.spellToDungeon and self.spellToDungeon[spellID] ~= nil
+end
+
+function Teleports:InitEvents()
+    if self.eventFrame then
+        return
+    end
+
+    self:BuildSpellIndex()
 
     local frame = CreateFrame("Frame")
     frame:RegisterEvent("UNIT_SPELLCAST_SENT")
@@ -885,17 +676,23 @@ function Teleports:InitLogging()
         local function HandleEvent()
             if event == "PLAYER_REGEN_ENABLED" or event == "SPELLS_CHANGED" then
                 Teleports:RefreshActionButtons()
+                if event == "SPELLS_CHANGED"
+                    and KeyTeleportBarLog
+                    and KeyTeleportBarLog.LogRefreshActionButtons
+                then
+                    KeyTeleportBarLog:LogRefreshActionButtons()
+                end
                 return
             end
 
             if event == "UNIT_SPELLCAST_SENT" then
                 local unit, _, _, spellID = unpack(args)
-                if unit ~= "player" then
+                if unit ~= "player" or not Teleports:IsSeasonTeleport(spellID) then
                     return
                 end
 
-                if Teleports.spellToDungeon[spellID] then
-                    Teleports:LogTeleport(spellID, "cast")
+                if KeyTeleportBarLog and KeyTeleportBarLog.LogTeleport then
+                    KeyTeleportBarLog:LogTeleport(spellID, "cast")
                 end
                 return
             end
@@ -909,7 +706,7 @@ function Teleports:InitLogging()
 
                 local spellID = Teleports.lastClickSpellID
                 local clickAge = GetTime() - (Teleports.lastClickTime or 0)
-                if not spellID or clickAge > 1 or not Teleports.spellToDungeon[spellID] then
+                if not spellID or clickAge > 1 or not Teleports:IsSeasonTeleport(spellID) then
                     return
                 end
 
@@ -917,7 +714,9 @@ function Teleports:InitLogging()
                     or message:find("cooldown", 1, true)
                     or message:find("Can't do that yet", 1, true)
                 then
-                    Teleports:LogTeleport(spellID, "error", message)
+                    if KeyTeleportBarLog and KeyTeleportBarLog.LogTeleport then
+                        KeyTeleportBarLog:LogTeleport(spellID, "error", message)
+                    end
                 end
             end
         end
@@ -932,5 +731,5 @@ function Teleports:InitLogging()
     self.eventFrame = frame
 end
 
-Teleports:InitLogging()
+Teleports:InitEvents()
 Teleports:InitBar()

@@ -337,6 +337,12 @@ function DebugUI:ShowConsole()
     if KeyLog and KeyLog.LogMinimapSnapshot then
         KeyLog:LogMinimapSnapshot()
     end
+    if KeyLog and KeyLog.LogTeleportBarSnapshot then
+        KeyLog:LogTeleportBarSnapshot()
+    end
+    if KeyLog and KeyLog.LogPartyCompleteSnapshot then
+        KeyLog:LogPartyCompleteSnapshot()
+    end
 end
 
 function DebugUI:IsShown()

@@ -137,6 +137,14 @@ function DebugData:DumpToLog()
         KeyLog:LogMinimapSnapshot()
     end
 
+    if KeyLog and KeyLog.LogTeleportBarSnapshot then
+        KeyLog:LogTeleportBarSnapshot()
+    end
+
+    if KeyLog and KeyLog.LogPartyCompleteSnapshot then
+        KeyLog:LogPartyCompleteSnapshot()
+    end
+
     if KeyPartySync then
         KeyLog:Add("Sync payloads:")
         KeyLog:Add("  lastKey: " .. tostring(KeyPartySync.lastPayload or "(none)"))

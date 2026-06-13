@@ -64,6 +64,18 @@ function Log:LogMinimapSnapshot()
     end
 end
 
+function Log:LogTeleportBarSnapshot()
+    if KeyTeleportBarLog and KeyTeleportBarLog.LogSnapshot then
+        KeyTeleportBarLog:LogSnapshot()
+    end
+end
+
+function Log:LogPartyCompleteSnapshot()
+    if KeyPartyCompleteLog and KeyPartyCompleteLog.LogSnapshot then
+        KeyPartyCompleteLog:LogSnapshot()
+    end
+end
+
 function Log:FormatEntry(entry)
     return string.format("[%s] %s", entry.time, entry.message)
 end

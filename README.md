@@ -68,7 +68,7 @@ No duplicate logging spam — updates are deduped and formatted consistently.
 
 ## Current season dungeons
 
-The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons). Season data lives in `Teleports.SEASON_DUNGEONS` in `Teleports.lua` — update `challengeModeID` and `spellID` when the season rotates.
+The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons). Season data lives in `Teleports.SEASON_DUNGEONS` in `teleport-bar/teleport-bar-data.lua` — update `challengeModeID` and `spellID` when the season rotates.
 
 ## Project layout
 
@@ -76,7 +76,11 @@ The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons).
 |------|------|
 | `Core.lua` | Event bus, slash commands, refresh/sync triggers |
 | `PartyUI.lua` | Main panel, tabs, layout |
-| `Teleports.lua` | Dungeon bar, secure teleport buttons, bests table |
+| `teleport-bar/teleport-bar.lua` | Dungeon bar, secure teleport buttons |
+| `teleport-bar/teleport-bar-logging.lua` | Teleport cast/cooldown logging and event hooks |
+| `party-complete/party-complete.lua` | Season bests table |
+| `party-complete/party-complete-logging.lua` | Completions pane layout logging |
+| `party-complete/party-complete-pane.lua` | M+ Completions tab pane and scroll |
 | `Keystones.lua` | Keystone and season-best caches |
 | `PartySync.lua` | `KeyF` addon message protocol |
 | `ReadyCheck.lua` | Ready tab UI and consumable/buff state |
@@ -89,6 +93,13 @@ The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons).
 | `minimap/minimap-button.lua` | Minimap quick-access button |
 
 ## Development notes
+
+### TOC manifests
+
+- **`keys.toc`** — public release manifest (tracked in git). Omits debug console and `*-logging.lua` modules.
+- **`mythic-keys.toc`** — local dev manifest (gitignored). Loads everything, including `DebugUI.lua`, `ClickDebug.lua`, and module logging.
+
+For local development, copy or symlink `mythic-keys.toc` as your active TOC (WoW loads the folder name or whichever `.toc` matches the addon directory).
 
 ### Teleport buttons
 
