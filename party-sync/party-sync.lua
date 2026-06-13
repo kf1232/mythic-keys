@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyPartySync = KeyPartySync or {}
-local Sync = KeyPartySync
+Key.PartySync = Key.PartySync or {}
+local Sync = Key.PartySync
 
 Sync.PREFIX = "KeyF"
 Sync.rosterDebounce = 0.25
@@ -38,8 +38,8 @@ function Sync:Init()
             end
         end
 
-        if KeyLog and KeyLog.RunProtected then
-            KeyLog:RunProtected("PartySync:" .. tostring(event), HandleEvent)
+        if Key.Log and Key.Log.RunProtected then
+            Key.Log:RunProtected("PartySync:" .. tostring(event), HandleEvent)
         else
             HandleEvent()
         end
@@ -71,9 +71,9 @@ function Sync:Send(message)
 
     local ok = pcall(C_ChatInfo.SendAddonMessage, self.PREFIX, message, self:GetChannel())
     if not ok then
-        KeyLog:WriteEvent(
-            KeyLog.FEATURE.PARTY_SYNC,
-            KeyLog.STATUS.WARN,
+        Key.Log:WriteEvent(
+            Key.Log.FEATURE.PARTY_SYNC,
+            Key.Log.STATUS.WARN,
             "Party keystone share skipped (addon messages blocked).",
             { source = "SendAddonMessage", dedupeKey = "sync:blocked", dedupeWindow = 30 }
         )
@@ -82,11 +82,11 @@ function Sync:Send(message)
 end
 
 function Sync:BuildBestPayload()
-    if KeyKeystones and KeyKeystones.BuildBestPayload then
-        return KeyKeystones:BuildBestPayload()
+    if Key.Keystones and Key.Keystones.BuildBestPayload then
+        return Key.Keystones:BuildBestPayload()
     end
-    if KeyKeystones and KeyKeystones.BuildEmptyBestPayload then
-        return KeyKeystones:BuildEmptyBestPayload()
+    if Key.Keystones and Key.Keystones.BuildEmptyBestPayload then
+        return Key.Keystones:BuildEmptyBestPayload()
     end
     return self.PROTOCOL.BEST.prefix .. ":"
 end
@@ -102,18 +102,18 @@ function Sync:PushBest(force)
 end
 
 function Sync:BuildReadyPayload()
-    if KeyReadyCheck and KeyReadyCheck.BuildReadyPayload then
-        return KeyReadyCheck:BuildReadyPayload()
+    if Key.ReadyCheck and Key.ReadyCheck.BuildReadyPayload then
+        return Key.ReadyCheck:BuildReadyPayload()
     end
-    if KeyReadyCheck and KeyReadyCheck.BuildEmptyReadyPayload then
-        return KeyReadyCheck:BuildEmptyReadyPayload()
+    if Key.ReadyCheck and Key.ReadyCheck.BuildEmptyReadyPayload then
+        return Key.ReadyCheck:BuildEmptyReadyPayload()
     end
     return self.PROTOCOL.READY.prefix .. ":100:0:0:0:0"
 end
 
 function Sync:BuildReadyStatePayload()
-    if KeyReadyCheck and KeyReadyCheck.BuildReadyStatePayload then
-        return KeyReadyCheck:BuildReadyStatePayload()
+    if Key.ReadyCheck and Key.ReadyCheck.BuildReadyStatePayload then
+        return Key.ReadyCheck:BuildReadyStatePayload()
     end
     return string.format("%s:0", self.PROTOCOL.READY_STATE.prefix)
 end
@@ -139,7 +139,7 @@ function Sync:PushReady(force)
 end
 
 function Sync:BuildPayload()
-    local key = KeyKeystones:GetOwnKeystone()
+    local key = Key.Keystones:GetOwnKeystone()
     if not key then
         return string.format("%s:0:0", self.PROTOCOL.KEY.prefix)
     end
@@ -159,8 +159,8 @@ end
 function Sync:RequestPartyKeys()
     self:Send(self.PROTOCOL.REQUEST)
 
-    if KeyExternalKeystones and KeyExternalKeystones.RequestPartyKeys then
-        KeyExternalKeystones:RequestPartyKeys()
+    if Key.Integrations.ExternalKeystones and Key.Integrations.ExternalKeystones.RequestPartyKeys then
+        Key.Integrations.ExternalKeystones:RequestPartyKeys()
     end
 end
 
@@ -219,11 +219,11 @@ function Sync:OnPartyChanged()
         return
     end
 
-    if KeyKeystones and KeyKeystones.RebindPartyCache then
-        KeyKeystones:RebindPartyCache()
+    if Key.Keystones and Key.Keystones.RebindPartyCache then
+        Key.Keystones:RebindPartyCache()
     end
-    if KeyReadyCheck and KeyReadyCheck.RebindReadyCache then
-        KeyReadyCheck:RebindReadyCache()
+    if Key.ReadyCheck and Key.ReadyCheck.RebindReadyCache then
+        Key.ReadyCheck:RebindReadyCache()
     end
 
     self:PushAll(true)
@@ -233,11 +233,11 @@ end
 
 function Sync:OnGroupLeft()
     self:CancelFollowUpSync()
-    if KeyKeystones and KeyKeystones.ClearPartyCache then
-        KeyKeystones:ClearPartyCache()
+    if Key.Keystones and Key.Keystones.ClearPartyCache then
+        Key.Keystones:ClearPartyCache()
     end
-    if KeyReadyCheck and KeyReadyCheck.ClearReadyCache then
-        KeyReadyCheck:ClearReadyCache()
+    if Key.ReadyCheck and Key.ReadyCheck.ClearReadyCache then
+        Key.ReadyCheck:ClearReadyCache()
     end
     self:ClearLocalPayloadCache()
 end
@@ -268,8 +268,8 @@ function Sync:OnAddonMessage(prefix, message, channel, sender)
         return
     end
 
-    if KeyKeystones and KeyKeystones.NormalizeSender then
-        sender = KeyKeystones:NormalizeSender(sender) or sender
+    if Key.Keystones and Key.Keystones.NormalizeSender then
+        sender = Key.Keystones:NormalizeSender(sender) or sender
     end
 
     if message == self.PROTOCOL.REQUEST then
@@ -281,8 +281,8 @@ function Sync:OnAddonMessage(prefix, message, channel, sender)
     if level then
         level = tonumber(level)
         mapID = tonumber(mapID)
-        if KeyKeystones:SetPartyKey(sender, level, mapID) then
-            KeyLog:LogKeystone(sender, KeyKeystones:LookupCachedKeyBySender(sender))
+        if Key.Keystones:SetPartyKey(sender, level, mapID) then
+            Key.Log:LogKeystone(sender, Key.Keystones:LookupCachedKeyBySender(sender))
         end
 
         Key.Dispatch("REFRESH_UI", { ifShown = true })
@@ -290,24 +290,24 @@ function Sync:OnAddonMessage(prefix, message, channel, sender)
     end
 
     if message:match("^" .. self.PROTOCOL.BEST.prefix .. ":") then
-        local bests = KeyKeystones:ParseBestPayload(message)
+        local bests = Key.Keystones:ParseBestPayload(message)
         if bests then
-            KeyKeystones:SetPartyBest(sender, bests)
+            Key.Keystones:SetPartyBest(sender, bests)
             Key.Dispatch("REFRESH_UI", { ifShown = true })
         end
         return
     end
 
-    local ready = KeyReadyCheck and KeyReadyCheck:ParseReadyPayload(message)
+    local ready = Key.ReadyCheck and Key.ReadyCheck:ParseReadyPayload(message)
     if ready then
-        KeyReadyCheck:SetPartyReady(sender, ready)
+        Key.ReadyCheck:SetPartyReady(sender, ready)
         Key.Dispatch("REFRESH_UI", { ifShown = true })
         return
     end
 
-    local readyState = KeyReadyCheck and KeyReadyCheck:ParseReadyStatePayload(message)
+    local readyState = Key.ReadyCheck and Key.ReadyCheck:ParseReadyStatePayload(message)
     if readyState ~= nil then
-        KeyReadyCheck:SetPartyReadyState(sender, readyState)
+        Key.ReadyCheck:SetPartyReadyState(sender, readyState)
         Key.Dispatch("REFRESH_UI", { ifShown = true })
         return
     end

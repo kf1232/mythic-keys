@@ -1,12 +1,12 @@
 local ADDON_NAME = ...
 
-KeyDebugData = KeyDebugData or {}
-local DebugData = KeyDebugData
+Key.Debug.Data = Key.Debug.Data or {}
+local DebugData = Key.Debug.Data
 
-local FEATURE = KeyLog and KeyLog.FEATURE and KeyLog.FEATURE.DEBUG or "DBUG"
+local FEATURE = Key.Log and Key.Log.FEATURE and Key.Log.FEATURE.DEBUG or "DBUG"
 
 local function WriteEvent(status, payload, options)
-    if not KeyLog or not KeyLog.WriteEvent then
+    if not Key.Log or not Key.Log.WriteEvent then
         return
     end
 
@@ -18,7 +18,7 @@ local function WriteEvent(status, payload, options)
         end
     end
 
-    KeyLog:WriteEvent(FEATURE, status, payload, options)
+    Key.Log:WriteEvent(FEATURE, status, payload, options)
 end
 
 function DebugData:ShortName(sender)
@@ -33,12 +33,12 @@ function DebugData:FormatBestSummary(bests)
         return "none"
     end
 
-    if not KeyKeystones or not KeyKeystones.GetSeasonDungeons then
+    if not Key.Keystones or not Key.Keystones.GetSeasonDungeons then
         return "unavailable"
     end
 
     local parts = {}
-    for _, dungeon in ipairs(KeyKeystones:GetSeasonDungeons()) do
+    for _, dungeon in ipairs(Key.Keystones:GetSeasonDungeons()) do
         local entry = bests[dungeon.challengeModeID]
         if entry and entry.level and entry.level > 0 then
             local suffix = entry.overTime and " OT" or ""
@@ -81,10 +81,10 @@ function DebugData:GetGroupSummary()
 end
 
 function DebugData:DumpPrimaryCache(title, cache, formatter)
-    WriteEvent(KeyLog.STATUS.DEBUG, title, { dedupe = false })
+    WriteEvent(Key.Log.STATUS.DEBUG, title, { dedupe = false })
 
     if not cache or not next(cache) then
-        WriteEvent(KeyLog.STATUS.DEBUG, "  (empty)", { dedupe = false })
+        WriteEvent(Key.Log.STATUS.DEBUG, "  (empty)", { dedupe = false })
         return
     end
 
@@ -97,79 +97,79 @@ function DebugData:DumpPrimaryCache(title, cache, formatter)
     end)
 
     for _, sender in ipairs(senders) do
-        WriteEvent(KeyLog.STATUS.DEBUG, string.format("  %s: %s", self:ShortName(sender), formatter(cache[sender])), {
+        WriteEvent(Key.Log.STATUS.DEBUG, string.format("  %s: %s", self:ShortName(sender), formatter(cache[sender])), {
             dedupe = false,
         })
     end
 end
 
 function DebugData:DumpToLog()
-    if not KeyLog or not KeyLog.WriteEvent then
+    if not Key.Log or not Key.Log.WriteEvent then
         return
     end
 
-    WriteEvent(KeyLog.STATUS.INFO, "--- Key data dump ---", { dedupe = false })
+    WriteEvent(Key.Log.STATUS.INFO, "--- Key data dump ---", { dedupe = false })
 
-    WriteEvent(KeyLog.STATUS.DEBUG, "Group: " .. self:GetGroupSummary(), { dedupe = false })
+    WriteEvent(Key.Log.STATUS.DEBUG, "Group: " .. self:GetGroupSummary(), { dedupe = false })
 
-    if KeyExternalKeystones and KeyExternalKeystones.GetProviderSummary then
-        WriteEvent(KeyLog.STATUS.DEBUG, "External keystones: " .. KeyExternalKeystones:GetProviderSummary(), { dedupe = false })
+    if Key.Integrations.ExternalKeystones and Key.Integrations.ExternalKeystones.GetProviderSummary then
+        WriteEvent(Key.Log.STATUS.DEBUG, "External keystones: " .. Key.Integrations.ExternalKeystones:GetProviderSummary(), { dedupe = false })
     end
 
-    if KeyPartyUI and KeyPartyUI.activeTab then
-        WriteEvent(KeyLog.STATUS.DEBUG, "Active tab: " .. tostring(KeyPartyUI.activeTab), { dedupe = false })
+    if Key.PartyUI and Key.PartyUI.activeTab then
+        WriteEvent(Key.Log.STATUS.DEBUG, "Active tab: " .. tostring(Key.PartyUI.activeTab), { dedupe = false })
     end
 
-    if KeyKeystones then
-        local ownKey = KeyKeystones:GetOwnKeystone()
-        WriteEvent(KeyLog.STATUS.DEBUG, "Player keystone: " .. KeyKeystones:FormatKey(ownKey), { dedupe = false })
+    if Key.Keystones then
+        local ownKey = Key.Keystones:GetOwnKeystone()
+        WriteEvent(Key.Log.STATUS.DEBUG, "Player keystone: " .. Key.Keystones:FormatKey(ownKey), { dedupe = false })
 
-        self:DumpPrimaryCache("Party keystones:", KeyKeystones.primaryCache, function(entry)
-            return KeyKeystones:FormatKey(entry)
+        self:DumpPrimaryCache("Party keystones:", Key.Keystones.primaryCache, function(entry)
+            return Key.Keystones:FormatKey(entry)
         end)
 
-        self:DumpPrimaryCache("Season bests:", KeyKeystones.primaryBestCache, function(entry)
+        self:DumpPrimaryCache("Season bests:", Key.Keystones.primaryBestCache, function(entry)
             return self:FormatBestSummary(entry)
         end)
     end
 
-    if KeyReadyCheck then
-        WriteEvent(KeyLog.STATUS.DEBUG, string.format("Player ready toggle: %s", KeyReadyCheck:GetPlayerReady() and "yes" or "no"), {
+    if Key.ReadyCheck then
+        WriteEvent(Key.Log.STATUS.DEBUG, string.format("Player ready toggle: %s", Key.ReadyCheck:GetPlayerReady() and "yes" or "no"), {
             dedupe = false,
         })
 
-        self:DumpPrimaryCache("Ready payloads:", KeyReadyCheck.primaryReadyCache, function(entry)
+        self:DumpPrimaryCache("Ready payloads:", Key.ReadyCheck.primaryReadyCache, function(entry)
             return self:FormatReadySummary(entry)
         end)
     end
 
-    if KeyAurasLog and KeyAurasLog.LogConsumableDiagnostics then
-        KeyAurasLog:LogConsumableDiagnostics("player")
+    if Key.AurasLog and Key.AurasLog.LogConsumableDiagnostics then
+        Key.AurasLog:LogConsumableDiagnostics("player")
     end
 
-    if KeyAurasLog and KeyAurasLog.LogUnitAuras then
-        KeyAurasLog:LogUnitAuras("player", "Dump snapshot")
+    if Key.AurasLog and Key.AurasLog.LogUnitAuras then
+        Key.AurasLog:LogUnitAuras("player", "Dump snapshot")
     end
 
-    if KeyLog and KeyLog.LogMinimapSnapshot then
-        KeyLog:LogMinimapSnapshot()
+    if Key.Log and Key.Log.LogMinimapSnapshot then
+        Key.Log:LogMinimapSnapshot()
     end
 
-    if KeyLog and KeyLog.LogTeleportBarSnapshot then
-        KeyLog:LogTeleportBarSnapshot()
+    if Key.Log and Key.Log.LogTeleportBarSnapshot then
+        Key.Log:LogTeleportBarSnapshot()
     end
 
-    if KeyLog and KeyLog.LogPartyCompleteSnapshot then
-        KeyLog:LogPartyCompleteSnapshot()
+    if Key.Log and Key.Log.LogPartyCompleteSnapshot then
+        Key.Log:LogPartyCompleteSnapshot()
     end
 
-    if KeyPartySync then
-        WriteEvent(KeyLog.STATUS.DEBUG, "Sync payloads:", { dedupe = false })
-        WriteEvent(KeyLog.STATUS.DEBUG, "  lastKey: " .. tostring(KeyPartySync.lastPayload or "(none)"), { dedupe = false })
-        WriteEvent(KeyLog.STATUS.DEBUG, "  lastBest: " .. tostring(KeyPartySync.lastBestPayload or "(none)"), { dedupe = false })
-        WriteEvent(KeyLog.STATUS.DEBUG, "  lastReady: " .. tostring(KeyPartySync.lastReadyPayload or "(none)"), { dedupe = false })
-        WriteEvent(KeyLog.STATUS.DEBUG, "  lastReadyState: " .. tostring(KeyPartySync.lastReadyStatePayload or "(none)"), { dedupe = false })
+    if Key.PartySync then
+        WriteEvent(Key.Log.STATUS.DEBUG, "Sync payloads:", { dedupe = false })
+        WriteEvent(Key.Log.STATUS.DEBUG, "  lastKey: " .. tostring(Key.PartySync.lastPayload or "(none)"), { dedupe = false })
+        WriteEvent(Key.Log.STATUS.DEBUG, "  lastBest: " .. tostring(Key.PartySync.lastBestPayload or "(none)"), { dedupe = false })
+        WriteEvent(Key.Log.STATUS.DEBUG, "  lastReady: " .. tostring(Key.PartySync.lastReadyPayload or "(none)"), { dedupe = false })
+        WriteEvent(Key.Log.STATUS.DEBUG, "  lastReadyState: " .. tostring(Key.PartySync.lastReadyStatePayload or "(none)"), { dedupe = false })
     end
 
-    WriteEvent(KeyLog.STATUS.INFO, "--- end dump ---", { dedupe = false })
+    WriteEvent(Key.Log.STATUS.INFO, "--- end dump ---", { dedupe = false })
 end

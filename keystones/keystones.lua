@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyKeystones = KeyKeystones or {}
-local Keystones = KeyKeystones
+Key.Keystones = Key.Keystones or {}
+local Keystones = Key.Keystones
 
 Keystones.partyCache = Keystones.partyCache or {}
 Keystones.partyCacheByGUID = Keystones.partyCacheByGUID or {}
@@ -59,8 +59,8 @@ function Keystones:GetSessionStores(primaryCache)
         return self.sessionPrimaryCache, self.sessionPartyCache, self.sessionPartyCacheByGUID
     end
 
-    if KeyReadyCheck and primaryCache == KeyReadyCheck.primaryReadyCache then
-        return KeyReadyCheck.sessionPrimaryReadyCache, KeyReadyCheck.sessionReadyCache, KeyReadyCheck.sessionReadyCacheByGUID
+    if Key.ReadyCheck and primaryCache == Key.ReadyCheck.primaryReadyCache then
+        return Key.ReadyCheck.sessionPrimaryReadyCache, Key.ReadyCheck.sessionReadyCache, Key.ReadyCheck.sessionReadyCacheByGUID
     end
 
     return nil, nil, nil
@@ -535,8 +535,8 @@ function Keystones:RestoreSessionCacheIfNeeded()
         end
     end
 
-    if KeyReadyCheck and KeyReadyCheck.RestoreSessionCacheIfNeeded then
-        KeyReadyCheck:RestoreSessionCacheIfNeeded()
+    if Key.ReadyCheck and Key.ReadyCheck.RestoreSessionCacheIfNeeded then
+        Key.ReadyCheck:RestoreSessionCacheIfNeeded()
     end
 
     self:RebindPartyCache()
@@ -553,8 +553,8 @@ function Keystones:ClearPartyCache()
 end
 
 function Keystones:GetSeasonDungeons()
-    if KeyTeleports and KeyTeleports.SEASON_DUNGEONS then
-        return KeyTeleports.SEASON_DUNGEONS
+    if Key.Teleports and Key.Teleports.SEASON_DUNGEONS then
+        return Key.Teleports.SEASON_DUNGEONS
     end
     return {}
 end
@@ -584,15 +584,15 @@ function Keystones:GetOwnBestForMap(challengeModeID)
 end
 
 function Keystones:GetBestPayloadPrefix()
-    if KeyPartySync and KeyPartySync.PROTOCOL and KeyPartySync.PROTOCOL.BEST then
-        return KeyPartySync.PROTOCOL.BEST.prefix
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.BEST then
+        return Key.PartySync.PROTOCOL.BEST.prefix
     end
     return "M"
 end
 
 function Keystones:GetBestPayloadPattern()
-    if KeyPartySync and KeyPartySync.PROTOCOL and KeyPartySync.PROTOCOL.BEST then
-        return KeyPartySync.PROTOCOL.BEST.pattern
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.BEST then
+        return Key.PartySync.PROTOCOL.BEST.pattern
     end
     return "^M:(.+)$"
 end

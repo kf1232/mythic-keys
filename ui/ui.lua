@@ -1,8 +1,8 @@
 local ADDON_NAME = ...
 
-KeyUI = KeyUI or {}
+Key.UI = Key.UI or {}
 
-KeyUI.LAYOUT = {
+Key.UI.LAYOUT = {
     padding = 10,
     paddingSmall = 8,
     frameInset = 4,
@@ -14,7 +14,7 @@ KeyUI.LAYOUT = {
     refreshButtonGap = 2,
 }
 
-KeyUI.FONTS = {
+Key.UI.FONTS = {
     default = {
         path = "Fonts\\FRIZQT__.TTF",
         size = 11,
@@ -28,7 +28,7 @@ KeyUI.FONTS = {
     },
 }
 
-KeyUI.BACKDROPS = {
+Key.UI.BACKDROPS = {
     flat = {
         bgFile = "Interface\\Buttons\\WHITE8X8",
     },
@@ -48,7 +48,7 @@ KeyUI.BACKDROPS = {
     },
 }
 
-KeyUI.THEME = {
+Key.UI.THEME = {
     default = {
         panelBg = { 0.10, 0.10, 0.10, 0.97 },
         panelBorder = { 0.35, 0.75, 0.35, 1 },
@@ -74,11 +74,11 @@ KeyUI.THEME = {
     },
 }
 
-function KeyUI:GetTheme()
+function Key.UI:GetTheme()
     return self.THEME.default
 end
 
-function KeyUI:MergeConfig(base, overrides)
+function Key.UI:MergeConfig(base, overrides)
     local merged = {}
 
     for key, value in pairs(base or {}) do
@@ -92,7 +92,7 @@ function KeyUI:MergeConfig(base, overrides)
     return merged
 end
 
-function KeyUI:WindowConfig(overrides)
+function Key.UI:WindowConfig(overrides)
     local theme = self:GetTheme()
 
     return self:MergeConfig({
@@ -105,7 +105,7 @@ function KeyUI:WindowConfig(overrides)
     }, overrides)
 end
 
-function KeyUI:TitleBarConfig(overrides)
+function Key.UI:TitleBarConfig(overrides)
     local theme = self:GetTheme()
 
     return self:MergeConfig({
@@ -120,7 +120,7 @@ function KeyUI:TitleBarConfig(overrides)
     }, overrides)
 end
 
-function KeyUI:TitleConfig(overrides)
+function Key.UI:TitleConfig(overrides)
     local theme = self:GetTheme()
 
     return self:MergeConfig({
@@ -132,7 +132,7 @@ function KeyUI:TitleConfig(overrides)
     }, overrides)
 end
 
-function KeyUI:TitleBarLabelConfig(overrides)
+function Key.UI:TitleBarLabelConfig(overrides)
     local theme = self:GetTheme()
 
     return self:MergeConfig({
@@ -144,7 +144,7 @@ function KeyUI:TitleBarLabelConfig(overrides)
     }, overrides)
 end
 
-function KeyUI:BodyTextConfig(overrides)
+function Key.UI:BodyTextConfig(overrides)
     local theme = self:GetTheme()
 
     return self:MergeConfig({
@@ -153,7 +153,7 @@ function KeyUI:BodyTextConfig(overrides)
     }, overrides)
 end
 
-function KeyUI:MutedTextConfig(overrides)
+function Key.UI:MutedTextConfig(overrides)
     local theme = self:GetTheme()
 
     return self:MergeConfig({
@@ -162,7 +162,7 @@ function KeyUI:MutedTextConfig(overrides)
     }, overrides)
 end
 
-function KeyUI:GetTabStyle(active)
+function Key.UI:GetTabStyle(active)
     local theme = self:GetTheme()
 
     if active then
@@ -180,7 +180,7 @@ function KeyUI:GetTabStyle(active)
     }
 end
 
-function KeyUI:ApplyTabButtonStyle(button, active)
+function Key.UI:ApplyTabButtonStyle(button, active)
     if not button then
         return
     end
@@ -195,7 +195,7 @@ function KeyUI:ApplyTabButtonStyle(button, active)
     end
 end
 
-function KeyUI:ApplyReadyToggleStyle(button, ready, locked)
+function Key.UI:ApplyReadyToggleStyle(button, ready, locked)
     if not button then
         return
     end
@@ -219,7 +219,7 @@ function KeyUI:ApplyReadyToggleStyle(button, ready, locked)
     end
 end
 
-function KeyUI:CreateTabButton(parent, label, tabId, onClick)
+function Key.UI:CreateTabButton(parent, label, tabId, onClick)
     local theme = self:GetTheme()
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
 
@@ -237,7 +237,7 @@ function KeyUI:CreateTabButton(parent, label, tabId, onClick)
     return button
 end
 
-function KeyUI:ResolveParent(parent)
+function Key.UI:ResolveParent(parent)
     if parent == nil then
         return UIParent
     end
@@ -247,7 +247,7 @@ function KeyUI:ResolveParent(parent)
     return parent
 end
 
-function KeyUI:ResolveAnchorRelative(frame, relativeTo)
+function Key.UI:ResolveAnchorRelative(frame, relativeTo)
     if relativeTo == "$parent" then
         return frame:GetParent()
     end
@@ -257,7 +257,7 @@ function KeyUI:ResolveAnchorRelative(frame, relativeTo)
     return relativeTo
 end
 
-function KeyUI:ApplyAnchors(frame, anchors)
+function Key.UI:ApplyAnchors(frame, anchors)
     if not anchors then
         return
     end
@@ -274,7 +274,7 @@ function KeyUI:ApplyAnchors(frame, anchors)
     end
 end
 
-function KeyUI:ApplyBackdrop(frame, config)
+function Key.UI:ApplyBackdrop(frame, config)
     if config.backdrop then
         frame:SetBackdrop(config.backdrop)
     end
@@ -288,7 +288,7 @@ function KeyUI:ApplyBackdrop(frame, config)
     end
 end
 
-function KeyUI:ApplyFrameBehavior(frame, config)
+function Key.UI:ApplyFrameBehavior(frame, config)
     if config.strata then
         frame:SetFrameStrata(config.strata)
     end
@@ -321,7 +321,7 @@ function KeyUI:ApplyFrameBehavior(frame, config)
     end
 end
 
-function KeyUI:ApplySize(frame, config)
+function Key.UI:ApplySize(frame, config)
     if config.size then
         frame:SetSize(config.size[1], config.size[2])
         return
@@ -341,14 +341,14 @@ function KeyUI:ApplySize(frame, config)
     end
 end
 
-function KeyUI:ApplyFrameStyle(frame, config)
+function Key.UI:ApplyFrameStyle(frame, config)
     self:ApplySize(frame, config)
     self:ApplyAnchors(frame, config.anchors)
     self:ApplyBackdrop(frame, config)
     self:ApplyFrameBehavior(frame, config)
 end
 
-function KeyUI:ApplyFontStringStyle(fontString, config)
+function Key.UI:ApplyFontStringStyle(fontString, config)
     if config.inherit then
         -- inherit font from GameFont template; color and text applied below
     elseif config.font then
@@ -382,7 +382,7 @@ function KeyUI:ApplyFontStringStyle(fontString, config)
     self:ApplyAnchors(fontString, config.anchors)
 end
 
-function KeyUI:CreateFrame(config, parent)
+function Key.UI:CreateFrame(config, parent)
     parent = self:ResolveParent(parent or config.parent)
     local frame = CreateFrame(
         config.frameType or "Frame",
@@ -394,7 +394,7 @@ function KeyUI:CreateFrame(config, parent)
     return frame
 end
 
-function KeyUI:CreateButton(config, parent)
+function Key.UI:CreateButton(config, parent)
     parent = self:ResolveParent(parent or config.parent)
     local button = CreateFrame(
         "Button",
@@ -406,7 +406,7 @@ function KeyUI:CreateButton(config, parent)
     return button
 end
 
-function KeyUI:CreateScrollFrame(config, parent)
+function Key.UI:CreateScrollFrame(config, parent)
     parent = self:ResolveParent(parent or config.parent)
     local scrollFrame = CreateFrame(
         "ScrollFrame",
@@ -418,7 +418,7 @@ function KeyUI:CreateScrollFrame(config, parent)
     return scrollFrame
 end
 
-function KeyUI:CreateFontString(config, parent)
+function Key.UI:CreateFontString(config, parent)
     parent = self:ResolveParent(parent or config.parent)
     local fontString = parent:CreateFontString(
         config.name,
@@ -434,14 +434,14 @@ function KeyUI:CreateFontString(config, parent)
     return fontString
 end
 
-function KeyUI:CreateCloseButton(parent)
+function Key.UI:CreateCloseButton(parent)
     return self:CreateButton({
         template = "UIPanelCloseButton",
         anchors = self.LAYOUT.closeButtonAnchors,
     }, parent)
 end
 
-function KeyUI:CreateRefreshButton(parent, options)
+function Key.UI:CreateRefreshButton(parent, options)
     options = options or {}
     local button = CreateFrame("Button", nil, parent, "UIPanelSquareButton")
 
@@ -481,5 +481,5 @@ function KeyUI:CreateRefreshButton(parent, options)
 end
 
 -- Backward compatibility for older references.
-KeyUI.BACKDROPS.panelBordered = KeyUI.BACKDROPS.window
-KeyUI.THEME.debug = KeyUI.THEME.default
+Key.UI.BACKDROPS.panelBordered = Key.UI.BACKDROPS.window
+Key.UI.THEME.debug = Key.UI.THEME.default

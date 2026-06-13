@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyApiWeaponEnchant = KeyApiWeaponEnchant or {}
-local API = KeyApiWeaponEnchant
+Key.Api.WeaponEnchant = Key.Api.WeaponEnchant or {}
+local API = Key.Api.WeaponEnchant
 
 function API:GetInfo()
     if not GetWeaponEnchantInfo then

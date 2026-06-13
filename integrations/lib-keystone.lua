@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyIntegrationLibKeystone = KeyIntegrationLibKeystone or {}
-local Provider = KeyIntegrationLibKeystone
+Key.Integrations.LibKeystone = Key.Integrations.LibKeystone or {}
+local Provider = Key.Integrations.LibKeystone
 
 Provider.id = "LibKeystone"
 

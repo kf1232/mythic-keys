@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyIntegrationLibOpenRaid = KeyIntegrationLibOpenRaid or {}
-local Provider = KeyIntegrationLibOpenRaid
+Key.Integrations.LibOpenRaid = Key.Integrations.LibOpenRaid or {}
+local Provider = Key.Integrations.LibOpenRaid
 
 Provider.id = "LibOpenRaid"
 
@@ -11,17 +11,17 @@ function Provider:ResolveChallengeMapID(keystoneInfo)
     end
 
     local mapID = keystoneInfo.challengeMapID
-    if KeyKeystones:IsAccessible(mapID) and mapID ~= 0 then
+    if Key.Keystones:IsAccessible(mapID) and mapID ~= 0 then
         return mapID
     end
 
     mapID = keystoneInfo.mapID
-    if KeyKeystones:IsAccessible(mapID) and mapID ~= 0 then
+    if Key.Keystones:IsAccessible(mapID) and mapID ~= 0 then
         return mapID
     end
 
     mapID = keystoneInfo.mythicPlusMapID
-    if KeyKeystones:IsAccessible(mapID) and mapID ~= 0 then
+    if Key.Keystones:IsAccessible(mapID) and mapID ~= 0 then
         return mapID
     end
 
@@ -64,7 +64,7 @@ function Provider:TryInit(host)
 end
 
 function Provider:ImportPartyCache(host)
-    if not host.openRaid or not KeyKeystones or not KeyKeystones.GetPartyUnits then
+    if not host.openRaid or not Key.Keystones or not Key.Keystones.GetPartyUnits then
         return
     end
 
@@ -72,7 +72,7 @@ function Provider:ImportPartyCache(host)
         return
     end
 
-    for _, unit in ipairs(KeyKeystones:GetPartyUnits()) do
+    for _, unit in ipairs(Key.Keystones:GetPartyUnits()) do
         if unit ~= "player" and UnitExists(unit) then
             local ok, keystoneInfo = pcall(host.openRaid.GetKeystoneInfo, unit)
             if ok and keystoneInfo then

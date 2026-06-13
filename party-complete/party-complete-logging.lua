@@ -1,16 +1,16 @@
 local ADDON_NAME = ...
 
-KeyPartyCompleteLog = KeyPartyCompleteLog or {}
-local PartyCompleteLog = KeyPartyCompleteLog
+Key.PartyCompleteLog = Key.PartyCompleteLog or {}
+local PartyCompleteLog = Key.PartyCompleteLog
 
-local FEATURE = KeyLog and KeyLog.FEATURE and KeyLog.FEATURE.PARTY_COMPLETE or "PCMP"
+local FEATURE = Key.Log and Key.Log.FEATURE and Key.Log.FEATURE.PARTY_COMPLETE or "PCMP"
 
 local function Log()
-    return KeyLog
+    return Key.Log
 end
 
 local function Teleports()
-    return KeyTeleports
+    return Key.Teleports
 end
 
 local function WriteEvent(status, payload, options)
@@ -31,7 +31,7 @@ local function WriteEvent(status, payload, options)
 end
 
 function PartyCompleteLog:ShouldLogUpdates()
-    return KeyDebugUI and KeyDebugUI.IsShown and KeyDebugUI:IsShown()
+    return Key.Debug.UI and Key.Debug.UI.IsShown and Key.Debug.UI:IsShown()
 end
 
 function PartyCompleteLog:LogUpdate(message, dedupeKey, dedupeWindow)
@@ -39,7 +39,7 @@ function PartyCompleteLog:LogUpdate(message, dedupeKey, dedupeWindow)
         return
     end
 
-    WriteEvent(KeyLog.STATUS.DEBUG, message, {
+    WriteEvent(Key.Log.STATUS.DEBUG, message, {
         dedupeKey = dedupeKey,
         dedupeWindow = dedupeWindow,
     })
@@ -88,7 +88,7 @@ function PartyCompleteLog:LogSnapshot()
         return
     end
 
-    WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+    WriteEvent(Key.Log.STATUS.DEBUG, string.format(
         "dungeons=%d maxRows=%d table=%s",
         teleports.SLOT_COUNT or 0,
         teleports.MAX_BEST_ROWS or 0,
@@ -96,7 +96,7 @@ function PartyCompleteLog:LogSnapshot()
     ))
 
     if teleports.bestTable then
-        WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+        WriteEvent(Key.Log.STATUS.DEBUG, string.format(
             "tableSize=%dx%d parent=%s",
             teleports.bestTable:GetWidth(),
             teleports.bestTable:GetHeight(),
@@ -104,9 +104,9 @@ function PartyCompleteLog:LogSnapshot()
         ))
     end
 
-    local pane = KeyPartyUI and KeyPartyUI.frame and KeyPartyUI.frame.completionsPane
+    local pane = Key.PartyUI and Key.PartyUI.frame and Key.PartyUI.frame.completionsPane
     if pane and pane.scrollFrame then
-        WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+        WriteEvent(Key.Log.STATUS.DEBUG, string.format(
             "scroll=%dx%d child=%dx%d",
             pane.scrollFrame:GetWidth(),
             pane.scrollFrame:GetHeight(),

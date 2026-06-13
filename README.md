@@ -72,25 +72,21 @@ The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons).
 
 ## Project layout
 
-| File | Role |
+| Path | Role |
 |------|------|
-| `Core.lua` | Event bus, slash commands, refresh/sync triggers |
-| `PartyUI.lua` | Main panel, tabs, layout |
-| `teleport-bar/teleport-bar.lua` | Dungeon bar, secure teleport buttons |
-| `teleport-bar/teleport-bar-logging.lua` | Teleport cast/cooldown logging and event hooks |
-| `party-complete/party-complete.lua` | Season bests table |
-| `party-complete/party-complete-logging.lua` | Completions pane layout logging |
-| `party-complete/party-complete-pane.lua` | M+ Completions tab pane and scroll |
-| `Keystones.lua` | Keystone and season-best caches |
-| `PartySync.lua` | `KeyF` addon message protocol |
-| `ReadyCheck.lua` | Ready tab UI and consumable/buff state |
-| `ExternalKeystones.lua` | LibKeystone / LibOpenRaid integration |
-| `Auras.lua` | Party buff scanning for the Ready tab |
-| `Log.lua` | Central logging with deduplication |
-| `debug/debug-ui.lua` / `debug/debug-data.lua` | Debug console and data dump |
-| `debug/click-debug.lua` | Optional click-hit tracing |
-| `UI.lua` | Shared frame/theme helpers |
-| `minimap/minimap-button.lua` | Minimap quick-access button |
+| `Core.lua` | Event bus, slash commands, WoW event wiring |
+| `Log.lua` | Central log store and `WriteEvent` API |
+| `ui/ui.lua` | Shared frame/theme helpers |
+| `keystones/keystones.lua` | Keystone and season-best caches |
+| `party-sync/party-sync.lua` | `KeyF` addon message protocol |
+| `party-ui/party-ui.lua` | Main panel shell, tabs, layout |
+| `ready-check/ready-check.lua` | Ready tab UI and ready payloads |
+| `teleport-bar/` | Dungeon bar and secure teleports |
+| `party-complete/` | Season bests table and completions pane |
+| `buffs-and-debuffs/` | Consumable scans for the Ready tab |
+| `integrations/` | LibKeystone / LibOpenRaid bridges |
+| `minimap/` | Minimap quick-access button |
+| `debug/` | Debug console and click tracing (dev TOC only) |
 
 ## Development notes
 

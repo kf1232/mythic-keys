@@ -1,10 +1,10 @@
 local ADDON_NAME = ...
 
-KeyPartyUI = KeyPartyUI or {}
-local PartyUI = KeyPartyUI
+Key.PartyUI = Key.PartyUI or {}
+local PartyUI = Key.PartyUI
 
-if not KeyTeleports then
-    error("KeyTeleports is missing. Load teleport-bar and party-complete before party-complete-pane.lua.")
+if not Key.Teleports then
+    error("Key.Teleports is missing. Load teleport-bar and party-complete before party-complete-pane.lua.")
 end
 
 local HEADER_HEIGHT = 28
@@ -22,7 +22,7 @@ function PartyUI:GetMemberBlockHeight(memberCount, contentWidth)
         return 0
     end
 
-    return KeyTeleports:GetBestTableHeight(memberCount, contentWidth)
+    return Key.Teleports:GetBestTableHeight(memberCount, contentWidth)
 end
 
 function PartyUI:ApplyCompletionsLayering(pane, teleportHeight)
@@ -83,10 +83,10 @@ function PartyUI:EnsureCompletionsPane(frame)
     pane:SetPoint("TOPLEFT", PADDING, -(HEADER_HEIGHT + 4))
     pane:SetPoint("BOTTOMRIGHT", -PADDING, BOTTOM_INSET)
 
-    pane.teleportBar = KeyTeleports:EnsureBar(pane)
+    pane.teleportBar = Key.Teleports:EnsureBar(pane)
     pane.teleportBar:SetPoint("TOPLEFT", 0, 0)
 
-    pane.bestTable = KeyTeleports:EnsureBestTable(pane)
+    pane.bestTable = Key.Teleports:EnsureBestTable(pane)
 
     self:EnsureCompletionsScroll(pane)
     frame.completionsPane = pane
@@ -96,13 +96,13 @@ function PartyUI:RefreshCompletionsPane(contentWidth, members)
     local pane = self.frame.completionsPane
     self:EnsureCompletionsScroll(pane)
 
-    local teleportHeight = KeyTeleports:LayoutBar(pane.teleportBar, contentWidth)
+    local teleportHeight = Key.Teleports:LayoutBar(pane.teleportBar, contentWidth)
     local memberCount = members and #members or 0
     local scrollChild = pane.scrollChild
 
     pane.bestTable:ClearAllPoints()
     pane.bestTable:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
-    KeyTeleports:LayoutBestTable(pane.bestTable, contentWidth, members)
+    Key.Teleports:LayoutBestTable(pane.bestTable, contentWidth, members)
 
     local contentHeight = self:GetMemberBlockHeight(memberCount, contentWidth)
     local visibleRows = math.max(1, math.min(memberCount, VISIBLE_MEMBER_ROWS))
@@ -110,8 +110,8 @@ function PartyUI:RefreshCompletionsPane(contentWidth, members)
     self:UpdateCompletionsScroll(memberCount, contentWidth, contentHeight, viewportHeight)
     self:ApplyCompletionsLayering(pane, teleportHeight)
 
-    if KeyPartyCompleteLog and KeyPartyCompleteLog.LogLayout then
-        KeyPartyCompleteLog:LogLayout(contentWidth, memberCount, contentHeight, viewportHeight, teleportHeight)
+    if Key.PartyCompleteLog and Key.PartyCompleteLog.LogLayout then
+        Key.PartyCompleteLog:LogLayout(contentWidth, memberCount, contentHeight, viewportHeight, teleportHeight)
     end
 
     return teleportHeight + SECTION_GAP + viewportHeight + self.PANE_BOTTOM_PADDING

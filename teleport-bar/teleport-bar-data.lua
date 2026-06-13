@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyTeleports = KeyTeleports or {}
-local Teleports = KeyTeleports
+Key.Teleports = Key.Teleports or {}
+local Teleports = Key.Teleports
 
 -- Midnight Season 1 M+ pool (MapChallengeMode.ID -> teleport spell)
 Teleports.SEASON_DUNGEONS = {

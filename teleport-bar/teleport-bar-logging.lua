@@ -1,16 +1,16 @@
 local ADDON_NAME = ...
 
-KeyTeleportBarLog = KeyTeleportBarLog or {}
-local TeleportBarLog = KeyTeleportBarLog
+Key.TeleportBarLog = Key.TeleportBarLog or {}
+local TeleportBarLog = Key.TeleportBarLog
 
-local FEATURE = KeyLog and KeyLog.FEATURE and KeyLog.FEATURE.TELEPORT_BAR or "TPBR"
+local FEATURE = Key.Log and Key.Log.FEATURE and Key.Log.FEATURE.TELEPORT_BAR or "TPBR"
 
 local function Log()
-    return KeyLog
+    return Key.Log
 end
 
 local function Teleports()
-    return KeyTeleports
+    return Key.Teleports
 end
 
 local function WriteEvent(status, payload, options)
@@ -39,21 +39,21 @@ function TeleportBarLog:LogTeleport(spellID, reason, extra)
 
     local name = teleports:GetDungeonName(dungeon)
     local payload
-    local status = KeyLog.STATUS.INFO
+    local status = Key.Log.STATUS.INFO
 
     if reason == "unavailable" then
         payload = string.format("Teleport unavailable: %s", name)
-        status = KeyLog.STATUS.WARN
+        status = Key.Log.STATUS.WARN
     elseif reason == "cooldown" then
         payload = string.format(
             "Teleport on cooldown: %s (%s)",
             name,
             SecondsToTime(math.ceil(extra or 0))
         )
-        status = KeyLog.STATUS.WARN
+        status = Key.Log.STATUS.WARN
     elseif reason == "error" then
         payload = string.format("Teleport failed: %s (%s)", name, extra or "unknown error")
-        status = KeyLog.STATUS.ERROR
+        status = Key.Log.STATUS.ERROR
     else
         payload = string.format("Teleporting to %s", name)
     end
@@ -65,7 +65,7 @@ function TeleportBarLog:LogTeleport(spellID, reason, extra)
 end
 
 function TeleportBarLog:ShouldLogUpdates()
-    return KeyDebugUI and KeyDebugUI.IsShown and KeyDebugUI:IsShown()
+    return Key.Debug.UI and Key.Debug.UI.IsShown and Key.Debug.UI:IsShown()
 end
 
 function TeleportBarLog:LogUpdate(message, dedupeKey, dedupeWindow)
@@ -73,7 +73,7 @@ function TeleportBarLog:LogUpdate(message, dedupeKey, dedupeWindow)
         return
     end
 
-    WriteEvent(KeyLog.STATUS.DEBUG, message, {
+    WriteEvent(Key.Log.STATUS.DEBUG, message, {
         dedupeKey = dedupeKey,
         dedupeWindow = dedupeWindow,
     })
@@ -107,7 +107,7 @@ function TeleportBarLog:LogSnapshot()
         return
     end
 
-    WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+    WriteEvent(Key.Log.STATUS.DEBUG, string.format(
         "slots=%d bar=%s contentWidth=%d",
         teleports.SLOT_COUNT or 0,
         teleports.bar and "yes" or "no",
@@ -115,7 +115,7 @@ function TeleportBarLog:LogSnapshot()
     ))
 
     if teleports.bar then
-        WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+        WriteEvent(Key.Log.STATUS.DEBUG, string.format(
             "size=%dx%d parent=%s",
             teleports.bar:GetWidth(),
             teleports.bar:GetHeight(),

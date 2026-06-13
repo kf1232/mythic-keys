@@ -1,7 +1,11 @@
 local ADDON_NAME = ...
 
-KeyLog = KeyLog or {}
-local Log = KeyLog
+Key = Key or {}
+Key.Api = Key.Api or {}
+Key.Integrations = Key.Integrations or {}
+Key.Debug = Key.Debug or {}
+Key.Log = Key.Log or {}
+local Log = Key.Log
 
 Log.entries = Log.entries or {}
 Log.listeners = Log.listeners or {}
@@ -25,6 +29,10 @@ Log.FEATURE = {
     BUFFS_DEBUFFS = "B&DB",
     DEBUG = "DBUG",
     CLICK_DEBUG = "CLIK",
+    KEYSTONES = "KEYS",
+    PARTY_UI = "PUI",
+    READY_CHECK = "RDCK",
+    UI = "UI",
 }
 
 local function ResolveCaller(level)
@@ -147,46 +155,46 @@ function Log:TryDisplayValue(value)
 end
 
 function Log:ResolveSpellName(spellId, displayName)
-    if KeyApiCSpell and KeyApiCSpell.GetSpellName then
-        return KeyApiCSpell:GetSpellName(spellId, displayName)
+    if Key.Api.Spell and Key.Api.Spell.GetSpellName then
+        return Key.Api.Spell:GetSpellName(spellId, displayName)
     end
     return nil
 end
 
 function Log:ShouldLogAuras(unit)
-    if KeyAurasLog and KeyAurasLog.ShouldLogAuras then
-        return KeyAurasLog:ShouldLogAuras(unit)
+    if Key.AurasLog and Key.AurasLog.ShouldLogAuras then
+        return Key.AurasLog:ShouldLogAuras(unit)
     end
     return false
 end
 
 function Log:LogConsumableDiagnostics(unit)
-    if KeyAurasLog and KeyAurasLog.LogConsumableDiagnostics then
-        KeyAurasLog:LogConsumableDiagnostics(unit)
+    if Key.AurasLog and Key.AurasLog.LogConsumableDiagnostics then
+        Key.AurasLog:LogConsumableDiagnostics(unit)
     end
 end
 
 function Log:LogUnitAuras(unit, reason)
-    if KeyAurasLog and KeyAurasLog.LogUnitAuras then
-        KeyAurasLog:LogUnitAuras(unit, reason)
+    if Key.AurasLog and Key.AurasLog.LogUnitAuras then
+        Key.AurasLog:LogUnitAuras(unit, reason)
     end
 end
 
 function Log:LogMinimapSnapshot()
-    if KeyMinimapLog and KeyMinimapLog.LogSnapshot then
-        KeyMinimapLog:LogSnapshot()
+    if Key.MinimapLog and Key.MinimapLog.LogSnapshot then
+        Key.MinimapLog:LogSnapshot()
     end
 end
 
 function Log:LogTeleportBarSnapshot()
-    if KeyTeleportBarLog and KeyTeleportBarLog.LogSnapshot then
-        KeyTeleportBarLog:LogSnapshot()
+    if Key.TeleportBarLog and Key.TeleportBarLog.LogSnapshot then
+        Key.TeleportBarLog:LogSnapshot()
     end
 end
 
 function Log:LogPartyCompleteSnapshot()
-    if KeyPartyCompleteLog and KeyPartyCompleteLog.LogSnapshot then
-        KeyPartyCompleteLog:LogSnapshot()
+    if Key.PartyCompleteLog and Key.PartyCompleteLog.LogSnapshot then
+        Key.PartyCompleteLog:LogSnapshot()
     end
 end
 
@@ -206,7 +214,7 @@ function Log:FormatEntry(entry)
 end
 
 function Log:FormatKeystone(key)
-    return KeyKeystones:FormatKey(key)
+    return Key.Keystones:FormatKey(key)
 end
 
 function Log:LogKeystone(sender, key)

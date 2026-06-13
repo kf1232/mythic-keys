@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyApiCUnitAuras = KeyApiCUnitAuras or {}
-local API = KeyApiCUnitAuras
+Key.Api.UnitAuras = Key.Api.UnitAuras or {}
+local API = Key.Api.UnitAuras
 
 local function IsUsableValue(value)
     if value == nil then

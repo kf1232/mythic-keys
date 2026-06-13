@@ -1,6 +1,6 @@
 local ADDON_NAME = ...
 
-KeyAurasData = KeyAurasData or {}
+Key.AurasData = Key.AurasData or {}
 
 -- Midnight Season 1 flasks, phials, and weapon oils/stones.
 -- spellId: player buff aura ID.
@@ -10,7 +10,7 @@ KeyAurasData = KeyAurasData or {}
 -- iconSpellId: optional; defaults to spellId when resolving icons at load.
 -- countsForReady: combat flasks only; phials and the PvP honor flask are excluded.
 -- Gold/silver craft quality on flasks is read from aura points via QUALITY_TIERS.
-KeyAurasData.midnight = {
+Key.AurasData.midnight = {
     KIND = {
         FOOD = "food",
         FLASK = "flask",

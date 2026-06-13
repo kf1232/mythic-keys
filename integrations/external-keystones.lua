@@ -1,27 +1,27 @@
 local ADDON_NAME = ...
 
-KeyExternalKeystones = KeyExternalKeystones or {}
-local External = KeyExternalKeystones
+Key.Integrations.ExternalKeystones = Key.Integrations.ExternalKeystones or {}
+local External = Key.Integrations.ExternalKeystones
 
 External.providers = External.providers or {}
 
 local KEYSTONE_PROVIDERS = {
-    KeyIntegrationLibKeystone,
-    KeyIntegrationLibOpenRaid,
+    Key.Integrations.LibKeystone,
+    Key.Integrations.LibOpenRaid,
 }
 
 function External:NormalizeSender(sender)
-    if KeyKeystones and KeyKeystones.NormalizeSender then
-        return KeyKeystones:NormalizeSender(sender)
+    if Key.Keystones and Key.Keystones.NormalizeSender then
+        return Key.Keystones:NormalizeSender(sender)
     end
-    if not KeyKeystones:IsAccessible(sender) or sender == "" then
+    if not Key.Keystones:IsAccessible(sender) or sender == "" then
         return nil
     end
     return Ambiguate(sender, "none")
 end
 
 function External:ApplyPartyKey(sender, level, mapID)
-    if not KeyKeystones or not KeyKeystones.SetPartyKey then
+    if not Key.Keystones or not Key.Keystones.SetPartyKey then
         return false
     end
 
@@ -30,7 +30,7 @@ function External:ApplyPartyKey(sender, level, mapID)
         return false
     end
 
-    if not KeyKeystones:IsAccessible(level) or not KeyKeystones:IsAccessible(mapID) then
+    if not Key.Keystones:IsAccessible(level) or not Key.Keystones:IsAccessible(mapID) then
         return false
     end
 
@@ -44,12 +44,12 @@ function External:ApplyPartyKey(sender, level, mapID)
         return false
     end
 
-    if not KeyKeystones:SetPartyKey(sender, level, mapID) then
+    if not Key.Keystones:SetPartyKey(sender, level, mapID) then
         return false
     end
 
-    if KeyLog and KeyLog.LogKeystone then
-        KeyLog:LogKeystone(sender, KeyKeystones:LookupCachedKeyBySender(sender))
+    if Key.Log and Key.Log.LogKeystone then
+        Key.Log:LogKeystone(sender, Key.Keystones:LookupCachedKeyBySender(sender))
     end
 
     if Key and Key.Dispatch then
@@ -69,8 +69,8 @@ function External:Init()
         end
     end
 
-    if self.providers.LibOpenRaid and KeyIntegrationLibOpenRaid then
-        KeyIntegrationLibOpenRaid:ImportPartyCache(self)
+    if self.providers.LibOpenRaid and Key.Integrations.LibOpenRaid then
+        Key.Integrations.LibOpenRaid:ImportPartyCache(self)
     end
 
     return added
@@ -112,14 +112,14 @@ initFrame:SetScript("OnEvent", function(_, event, arg1)
         end
 
         if event == "PLAYER_ENTERING_WORLD" then
-            if External:Init() and External.providers.LibOpenRaid and KeyIntegrationLibOpenRaid then
-                KeyIntegrationLibOpenRaid:ImportPartyCache(External)
+            if External:Init() and External.providers.LibOpenRaid and Key.Integrations.LibOpenRaid then
+                Key.Integrations.LibOpenRaid:ImportPartyCache(External)
             end
         end
     end
 
-    if KeyLog and KeyLog.RunProtected then
-        KeyLog:RunProtected("ExternalKeystones:" .. tostring(event), HandleEvent)
+    if Key.Log and Key.Log.RunProtected then
+        Key.Log:RunProtected("ExternalKeystones:" .. tostring(event), HandleEvent)
     else
         HandleEvent()
     end

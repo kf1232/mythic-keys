@@ -1,8 +1,8 @@
 local ADDON_NAME = ...
 
-KeyMinimap = KeyMinimap or {}
+Key.Minimap = Key.Minimap or {}
 
-local MinimapButton = KeyMinimap
+local MinimapButton = Key.Minimap
 
 local BUTTON_SIZE = 31
 local BUTTON_RADIUS = 5
@@ -29,7 +29,7 @@ local function SetAngle(angle)
 end
 
 local function UpdatePosition(button)
-    local x, y = KeyApiMinimap:GetOffsetForAngle(Minimap, GetAngle(), BUTTON_RADIUS)
+    local x, y = Key.Api.Minimap:GetOffsetForAngle(Minimap, GetAngle(), BUTTON_RADIUS)
     button:ClearAllPoints()
     button:SetPoint("CENTER", Minimap, "CENTER", x, y)
 end
@@ -66,17 +66,17 @@ function MinimapButton:CreateButton()
     button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
     button:SetScript("OnClick", function(_, mouseButton)
-        if KeyMinimapLog and KeyMinimapLog.LogClick then
-            KeyMinimapLog:LogClick(mouseButton)
+        if Key.MinimapLog and Key.MinimapLog.LogClick then
+            Key.MinimapLog:LogClick(mouseButton)
         end
         if mouseButton == "RightButton" then
-            if KeyDebugUI and KeyDebugUI.ShowConsole then
-                KeyDebugUI:ShowConsole()
+            if Key.Debug.UI and Key.Debug.UI.ShowConsole then
+                Key.Debug.UI:ShowConsole()
             end
             return
         end
-        if KeyPartyUI and KeyPartyUI.TogglePanel then
-            KeyPartyUI:TogglePanel()
+        if Key.PartyUI and Key.PartyUI.TogglePanel then
+            Key.PartyUI:TogglePanel()
         end
     end)
 
@@ -93,26 +93,26 @@ function MinimapButton:CreateButton()
     end)
 
     button:SetScript("OnDragStart", function(self)
-        if KeyMinimapLog and KeyMinimapLog.LogDragStart then
-            KeyMinimapLog:LogDragStart()
+        if Key.MinimapLog and Key.MinimapLog.LogDragStart then
+            Key.MinimapLog:LogDragStart()
         end
         self:SetScript("OnUpdate", function()
-            SetAngle(KeyApiMinimap:GetAngleFromCursor(Minimap))
+            SetAngle(Key.Api.Minimap:GetAngleFromCursor(Minimap))
             UpdatePosition(self)
         end)
     end)
 
     button:SetScript("OnDragStop", function(self)
         self:SetScript("OnUpdate", nil)
-        if KeyMinimapLog and KeyMinimapLog.LogDragStop then
-            KeyMinimapLog:LogDragStop()
+        if Key.MinimapLog and Key.MinimapLog.LogDragStop then
+            Key.MinimapLog:LogDragStop()
         end
     end)
 
     self.button = button
     UpdatePosition(button)
-    if KeyMinimapLog and KeyMinimapLog.LogInit then
-        KeyMinimapLog:LogInit()
+    if Key.MinimapLog and Key.MinimapLog.LogInit then
+        Key.MinimapLog:LogInit()
     end
     return button
 end

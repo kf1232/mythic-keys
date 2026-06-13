@@ -28,19 +28,19 @@ local function MergeRefreshContext(existing, incoming)
 end
 
 local function RunRefreshUI(ctx)
-    if not KeyPartyUI then
+    if not Key.PartyUI then
         return
     end
-    if ctx.ifShown and not KeyPartyUI:IsShown() then
+    if ctx.ifShown and not Key.PartyUI:IsShown() then
         return
     end
     if ctx.readyOnly then
-        if KeyPartyUI.RefreshReadyOnly then
-            KeyPartyUI:RefreshReadyOnly()
+        if Key.PartyUI.RefreshReadyOnly then
+            Key.PartyUI:RefreshReadyOnly()
         end
         return
     end
-    KeyPartyUI:Refresh()
+    Key.PartyUI:Refresh()
 end
 
 local function CancelRefreshSchedule()
@@ -56,8 +56,8 @@ function Key.Dispatch(trigger, ctx)
         return
     end
 
-    if KeyLog and KeyLog.RunProtected then
-        return KeyLog:RunProtected("Dispatch:" .. tostring(trigger), handler, ctx or {})
+    if Key.Log and Key.Log.RunProtected then
+        return Key.Log:RunProtected("Dispatch:" .. tostring(trigger), handler, ctx or {})
     end
 
     return handler(ctx or {})
@@ -74,30 +74,30 @@ function Key.SchedulePartySyncIfGrouped()
 end
 
 function Key.InvalidatePartySyncPayloads()
-    if KeyPartySync and KeyPartySync.InvalidatePayloadCache then
-        KeyPartySync:InvalidatePayloadCache("key")
-        KeyPartySync:InvalidatePayloadCache("best")
+    if Key.PartySync and Key.PartySync.InvalidatePayloadCache then
+        Key.PartySync:InvalidatePayloadCache("key")
+        Key.PartySync:InvalidatePayloadCache("best")
     end
 end
 
 Key.TRIGGERS = {
     ADDON_LOADED = function()
-        if not KeyPartyUI or not KeyPartyUI.TogglePanel then
+        if not Key.PartyUI or not Key.PartyUI.TogglePanel then
             PrintMessage("|cffFF0000Key:|r PartyUI failed to load. Enable /console scriptErrors 1 and /reload.")
         else
             PrintMessage("|cff55FF55Key|r loaded. |cffFFFFFF/keyf|r party list, |cffFFFFFF/keyf debug|r console.")
         end
-        if KeyPartySync and KeyPartySync.BootstrapIfGrouped then
-            KeyPartySync:BootstrapIfGrouped()
+        if Key.PartySync and Key.PartySync.BootstrapIfGrouped then
+            Key.PartySync:BootstrapIfGrouped()
         end
-        if KeyMinimap and KeyMinimap.Init then
-            KeyMinimap:Init()
+        if Key.Minimap and Key.Minimap.Init then
+            Key.Minimap:Init()
         end
     end,
 
     GROUP_LEFT = function()
-        if KeyPartySync and KeyPartySync.OnGroupLeft then
-            KeyPartySync:OnGroupLeft()
+        if Key.PartySync and Key.PartySync.OnGroupLeft then
+            Key.PartySync:OnGroupLeft()
         end
         Key.Dispatch("REFRESH_UI", { ifShown = true })
     end,
@@ -107,8 +107,8 @@ Key.TRIGGERS = {
     end,
 
     PLAYER_ENTERING_WORLD = function()
-        if IsInGroup() and KeyKeystones and KeyKeystones.RestoreSessionCacheIfNeeded then
-            KeyKeystones:RestoreSessionCacheIfNeeded()
+        if IsInGroup() and Key.Keystones and Key.Keystones.RestoreSessionCacheIfNeeded then
+            Key.Keystones:RestoreSessionCacheIfNeeded()
         end
         Key.Dispatch("PARTY_SYNC_SCHEDULE")
         Key.Dispatch("REFRESH_UI", { ifShown = true })
@@ -121,22 +121,22 @@ Key.TRIGGERS = {
     end,
 
     CHAT_MSG_ADDON = function(ctx)
-        if KeyPartySync then
-            KeyPartySync:OnAddonMessage(ctx.prefix, ctx.message, ctx.channel, ctx.sender)
+        if Key.PartySync then
+            Key.PartySync:OnAddonMessage(ctx.prefix, ctx.message, ctx.channel, ctx.sender)
         end
     end,
 
     PARTY_SYNC_SCHEDULE = function()
-        if IsInGroup() and KeyPartySync then
-            KeyPartySync:SchedulePartySync()
+        if IsInGroup() and Key.PartySync then
+            Key.PartySync:SchedulePartySync()
             return
         end
         Key.Dispatch("REFRESH_UI", { ifShown = true })
     end,
 
     PARTY_CHANGED = function(ctx)
-        if KeyPartySync then
-            KeyPartySync:OnPartyChanged()
+        if Key.PartySync then
+            Key.PartySync:OnPartyChanged()
         end
         Key.Dispatch("REFRESH_UI", {
             ifShown = true,
@@ -166,24 +166,24 @@ Key.TRIGGERS = {
     end,
 
     UI_PANEL_OPEN = function()
-        if KeyPartySync then
+        if Key.PartySync then
             if IsInGroup() then
-                KeyPartySync:OnPartyChanged()
+                Key.PartySync:OnPartyChanged()
             else
-                KeyPartySync:PushAll(true)
+                Key.PartySync:PushAll(true)
             end
         end
         Key.Dispatch("REFRESH_UI", { immediate = true })
     end,
 
     UI_REFRESH_CLICK = function()
-        if IsInGroup() and KeyPartySync then
+        if IsInGroup() and Key.PartySync then
             Key.Dispatch("PARTY_CHANGED", { immediate = true })
             return
         end
-        if KeyPartySync then
-            KeyPartySync:PushBest(true)
-            KeyPartySync:PushReady(true)
+        if Key.PartySync then
+            Key.PartySync:PushBest(true)
+            Key.PartySync:PushReady(true)
         end
         Key.Dispatch("REFRESH_UI", { immediate = true })
     end,
@@ -193,10 +193,10 @@ Key.TRIGGERS = {
     end,
 
     UI_READY_TOGGLE = function()
-        if KeyPartySync then
-            KeyPartySync:PushReadyState(true)
-            KeyPartySync.lastReadyPayload = nil
-            KeyPartySync:PushReady(true)
+        if Key.PartySync then
+            Key.PartySync:PushReadyState(true)
+            Key.PartySync.lastReadyPayload = nil
+            Key.PartySync:PushReady(true)
         end
         Key.Dispatch("REFRESH_UI", { ifShown = true, immediate = true })
     end,
@@ -206,8 +206,8 @@ local function RunSlashCommand(msg)
     msg = strtrim(msg or ""):lower()
 
     if msg == "debug" then
-        if KeyDebugUI and KeyDebugUI.ShowConsole then
-            KeyDebugUI:ShowConsole()
+        if Key.Debug.UI and Key.Debug.UI.ShowConsole then
+            Key.Debug.UI:ShowConsole()
         else
             PrintMessage("|cffFF8800Key:|r debug UI not loaded.")
         end
@@ -215,8 +215,8 @@ local function RunSlashCommand(msg)
     end
 
     if msg == "clear" then
-        if KeyDebugUI and KeyDebugUI.ClearLog then
-            KeyDebugUI:ClearLog()
+        if Key.Debug.UI and Key.Debug.UI.ClearLog then
+            Key.Debug.UI:ClearLog()
             PrintMessage("|cff55FF55Key:|r debug log cleared.")
         else
             PrintMessage("|cffFF8800Key:|r debug UI not loaded.")
@@ -225,8 +225,8 @@ local function RunSlashCommand(msg)
     end
 
     if msg == "dump" then
-        if KeyDebugUI and KeyDebugUI.DumpData then
-            KeyDebugUI:DumpData()
+        if Key.Debug.UI and Key.Debug.UI.DumpData then
+            Key.Debug.UI:DumpData()
             PrintMessage("|cff55FF55Key:|r addon data dumped to debug log.")
         else
             PrintMessage("|cffFF8800Key:|r debug UI not loaded.")
@@ -235,13 +235,13 @@ local function RunSlashCommand(msg)
     end
 
     if msg == "clickdebug" or msg == "click" then
-        if KeyClickDebug and KeyClickDebug.Toggle then
-            local on = KeyClickDebug:Toggle()
+        if Key.Debug.Click and Key.Debug.Click.Toggle then
+            local on = Key.Debug.Click:Toggle()
             PrintMessage(on
                 and "|cff55FF55Key:|r click debug ON — use /keyf debug and click teleport icons."
                 or "|cff55FF55Key:|r click debug OFF.")
-            if on and KeyPartyUI and KeyPartyUI.frame and KeyPartyUI.frame:IsShown() then
-                KeyClickDebug:RewireAll()
+            if on and Key.PartyUI and Key.PartyUI.frame and Key.PartyUI.frame:IsShown() then
+                Key.Debug.Click:RewireAll()
             end
         else
             PrintMessage("|cffFF8800Key:|r click debug not loaded.")
@@ -253,8 +253,8 @@ local function RunSlashCommand(msg)
         return
     end
 
-    if KeyPartyUI and KeyPartyUI.TogglePanel then
-        KeyPartyUI:TogglePanel()
+    if Key.PartyUI and Key.PartyUI.TogglePanel then
+        Key.PartyUI:TogglePanel()
     else
         PrintMessage("|cffFF8800Key:|r party UI not loaded.")
     end
@@ -321,8 +321,8 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
         Key.Dispatch(event)
     end
 
-    if KeyLog and KeyLog.RunProtected then
-        KeyLog:RunProtected("Core:" .. tostring(event), HandleEvent)
+    if Key.Log and Key.Log.RunProtected then
+        Key.Log:RunProtected("Core:" .. tostring(event), HandleEvent)
     else
         HandleEvent()
     end

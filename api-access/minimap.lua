@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyApiMinimap = KeyApiMinimap or {}
-local API = KeyApiMinimap
+Key.Api.Minimap = Key.Api.Minimap or {}
+local API = Key.Api.Minimap
 
 local MINIMAP_SHAPES = {
     ["ROUND"] = { true, true, true, true },

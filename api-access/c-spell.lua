@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyApiCSpell = KeyApiCSpell or {}
-local API = KeyApiCSpell
+Key.Api.Spell = Key.Api.Spell or {}
+local API = Key.Api.Spell
 
 function API:GetSpellInfo(spellId)
     if not spellId or not C_Spell or not C_Spell.GetSpellInfo then
@@ -36,8 +36,8 @@ function API:GetSpellName(spellId, displayName)
         return nil
     end
 
-    if KeyLog and KeyLog.TryDisplayValue then
-        local spellName = KeyLog:TryDisplayValue(spellInfo.name)
+    if Key.Log and Key.Log.TryDisplayValue then
+        local spellName = Key.Log:TryDisplayValue(spellInfo.name)
         if spellName and spellName ~= displayName then
             return spellName
         end

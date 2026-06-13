@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyClickDebug = KeyClickDebug or {}
-local ClickDebug = KeyClickDebug
+Key.Debug.Click = Key.Debug.Click or {}
+local ClickDebug = Key.Debug.Click
 
 ClickDebug.enabled = ClickDebug.enabled or false
 ClickDebug.attached = ClickDebug.attached or {}
@@ -11,11 +11,11 @@ function ClickDebug:IsEnabled()
 end
 
 function ClickDebug:Log(message, label)
-    if not self.enabled or not KeyLog or not KeyLog.WriteEvent then
+    if not self.enabled or not Key.Log or not Key.Log.WriteEvent then
         return
     end
 
-    KeyLog:WriteEvent(KeyLog.FEATURE.CLICK_DEBUG, KeyLog.STATUS.DEBUG, message, {
+    Key.Log:WriteEvent(Key.Log.FEATURE.CLICK_DEBUG, Key.Log.STATUS.DEBUG, message, {
         source = label or "Log",
         dedupeKey = "click:" .. (label or message),
         dedupeWindow = 0.05,
@@ -145,11 +145,11 @@ function ClickDebug:Attach(frame, label, options)
 end
 
 function ClickDebug:WireTeleportSlots()
-    if not KeyTeleports or not KeyTeleports.bar then
+    if not Key.Teleports or not Key.Teleports.bar then
         return
     end
 
-    local Teleports = KeyTeleports
+    local Teleports = Key.Teleports
     self:Attach(Teleports.bar, "teleport.bar", { passThrough = true })
 
     for index, slot in ipairs(Teleports.bar.slots or {}) do
@@ -170,18 +170,18 @@ function ClickDebug:WireTeleportSlots()
 end
 
 function ClickDebug:WireBestTable()
-    if not KeyTeleports or not KeyTeleports.bestTable then
+    if not Key.Teleports or not Key.Teleports.bestTable then
         return
     end
 
-    local tableFrame = KeyTeleports.bestTable
+    local tableFrame = Key.Teleports.bestTable
     self:Attach(tableFrame, "bestTable.root", { passThrough = true })
 
     for rowIndex, row in ipairs(tableFrame.rows or {}) do
         if row.name and row.name:IsShown() then
             self:Attach(row.name, "bestTable.row" .. rowIndex .. ".name")
         end
-        for colIndex = 1, (KeyTeleports.SLOT_COUNT or 8) do
+        for colIndex = 1, (Key.Teleports.SLOT_COUNT or 8) do
             local cell = row[colIndex]
             if cell and cell:IsShown() then
                 self:Attach(cell, string.format("bestTable.row%d.col%d", rowIndex, colIndex))
@@ -191,11 +191,11 @@ function ClickDebug:WireBestTable()
 end
 
 function ClickDebug:WirePartyUI()
-    if not KeyPartyUI or not KeyPartyUI.frame then
+    if not Key.PartyUI or not Key.PartyUI.frame then
         return
     end
 
-    local frame = KeyPartyUI.frame
+    local frame = Key.PartyUI.frame
     self:Attach(frame, "party.frame", { forceMouse = true })
 
     if frame.titleBar then

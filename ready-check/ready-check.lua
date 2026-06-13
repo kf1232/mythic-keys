@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyReadyCheck = KeyReadyCheck or {}
-local ReadyCheck = KeyReadyCheck
+Key.ReadyCheck = Key.ReadyCheck or {}
+local ReadyCheck = Key.ReadyCheck
 
 ReadyCheck.readyCache = ReadyCheck.readyCache or {}
 ReadyCheck.readyCacheByGUID = ReadyCheck.readyCacheByGUID or {}
@@ -81,15 +81,15 @@ function ReadyCheck:GetDefaultIcon()
 end
 
 function ReadyCheck:GetReadyPayloadPattern()
-    if KeyPartySync and KeyPartySync.PROTOCOL and KeyPartySync.PROTOCOL.READY then
-        return KeyPartySync.PROTOCOL.READY.pattern
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.READY then
+        return Key.PartySync.PROTOCOL.READY.pattern
     end
     return "^P:(%d+):(%d+):(%d+):(%d+):?(%d*)$"
 end
 
 function ReadyCheck:GetReadyStatePayloadPattern()
-    if KeyPartySync and KeyPartySync.PROTOCOL and KeyPartySync.PROTOCOL.READY_STATE then
-        return KeyPartySync.PROTOCOL.READY_STATE.pattern
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.READY_STATE then
+        return Key.PartySync.PROTOCOL.READY_STATE.pattern
     end
     return "^Y:(%d+)$"
 end
@@ -125,36 +125,36 @@ function ReadyCheck:ApplyCellTextAnchor(cell, justify)
 end
 
 function ReadyCheck:BuildLookupKeys(name)
-    if KeyKeystones and KeyKeystones.BuildLookupKeys then
-        return KeyKeystones:BuildLookupKeys(name)
+    if Key.Keystones and Key.Keystones.BuildLookupKeys then
+        return Key.Keystones:BuildLookupKeys(name)
     end
     return name and { name } or {}
 end
 
 function ReadyCheck:FindPartyUnitForSender(sender)
-    if KeyKeystones and KeyKeystones.FindPartyUnitForSender then
-        return KeyKeystones:FindPartyUnitForSender(sender)
+    if Key.Keystones and Key.Keystones.FindPartyUnitForSender then
+        return Key.Keystones:FindPartyUnitForSender(sender)
     end
     return nil
 end
 
 function ReadyCheck:GetPlayerRepairPercent()
-    if KeyApiInventoryDurability and KeyApiInventoryDurability.GetRepairPercent then
-        return KeyApiInventoryDurability:GetRepairPercent()
+    if Key.Api.InventoryDurability and Key.Api.InventoryDurability.GetRepairPercent then
+        return Key.Api.InventoryDurability:GetRepairPercent()
     end
     return 100
 end
 
 function ReadyCheck:GetConsumableStatus(unit)
-    return KeyAuras:GetConsumableStatus(unit)
+    return Key.Auras:GetConsumableStatus(unit)
 end
 
 function ReadyCheck:GetPartyBuffText(unit)
-    if not KeyApiCUnitAuras or not KeyApiCUnitAuras.GetSelfSourcedBuffNames then
+    if not Key.Api.UnitAuras or not Key.Api.UnitAuras.GetSelfSourcedBuffNames then
         return "—"
     end
 
-    local buffs = KeyApiCUnitAuras:GetSelfSourcedBuffNames(unit, "HELPFUL|RAID")
+    local buffs = Key.Api.UnitAuras:GetSelfSourcedBuffNames(unit, "HELPFUL|RAID")
     if not buffs or #buffs == 0 then
         return "—"
     end
@@ -180,8 +180,8 @@ end
 
 function ReadyCheck:BuildReadyPayloadFromSnapshot(snapshot)
     local prefix = "P"
-    if KeyPartySync and KeyPartySync.PROTOCOL and KeyPartySync.PROTOCOL.READY then
-        prefix = KeyPartySync.PROTOCOL.READY.prefix
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.READY then
+        prefix = Key.PartySync.PROTOCOL.READY.prefix
     end
 
     local values = {}
@@ -201,8 +201,8 @@ end
 
 function ReadyCheck:BuildReadyStatePayload()
     local prefix = "Y"
-    if KeyPartySync and KeyPartySync.PROTOCOL and KeyPartySync.PROTOCOL.READY_STATE then
-        prefix = KeyPartySync.PROTOCOL.READY_STATE.prefix
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.READY_STATE then
+        prefix = Key.PartySync.PROTOCOL.READY_STATE.prefix
     end
     return string.format("%s:%d", prefix, self.playerReady and 1 or 0)
 end
@@ -285,7 +285,7 @@ function ReadyCheck:UpdateToggleButton()
         button.label:SetText(locked and "You: Unready (locked)" or "You: Unready")
     end
 
-    KeyUI:ApplyReadyToggleStyle(button, ready, locked)
+    Key.UI:ApplyReadyToggleStyle(button, ready, locked)
 end
 
 function ReadyCheck:TogglePlayerReady()
@@ -310,8 +310,8 @@ function ReadyCheck:TogglePlayerReady()
 end
 
 function ReadyCheck:StoreReadyEntry(entry, sender)
-    if KeyKeystones and KeyKeystones.StoreEntryForSender then
-        KeyKeystones:StoreEntryForSender(
+    if Key.Keystones and Key.Keystones.StoreEntryForSender then
+        Key.Keystones:StoreEntryForSender(
             entry,
             sender,
             self.primaryReadyCache,
@@ -327,8 +327,8 @@ function ReadyCheck:SetPartyReady(sender, entry)
     end
 
     if not entry then
-        if KeyKeystones and KeyKeystones.ClearEntryForSender then
-            KeyKeystones:ClearEntryForSender(
+        if Key.Keystones and Key.Keystones.ClearEntryForSender then
+            Key.Keystones:ClearEntryForSender(
                 sender,
                 self.primaryReadyCache,
                 self.readyCache,
@@ -342,9 +342,9 @@ function ReadyCheck:SetPartyReady(sender, entry)
 end
 
 function ReadyCheck:LookupCachedReady(unit)
-    if KeyKeystones and KeyKeystones.LookupUnitInCaches then
-        return KeyKeystones:LookupUnitInCaches(unit, self.readyCacheByGUID, self.readyCache)
-            or KeyKeystones:LookupUnitInCaches(unit, self.sessionReadyCacheByGUID, self.sessionReadyCache)
+    if Key.Keystones and Key.Keystones.LookupUnitInCaches then
+        return Key.Keystones:LookupUnitInCaches(unit, self.readyCacheByGUID, self.readyCache)
+            or Key.Keystones:LookupUnitInCaches(unit, self.sessionReadyCacheByGUID, self.sessionReadyCache)
     end
     return nil
 end
@@ -376,8 +376,8 @@ function ReadyCheck:ClearReadyCache()
 end
 
 function ReadyCheck:RebindReadyCache()
-    if KeyKeystones and KeyKeystones.RebindCacheByGUID then
-        KeyKeystones:RebindCacheByGUID(self.primaryReadyCache, self.readyCacheByGUID)
+    if Key.Keystones and Key.Keystones.RebindCacheByGUID then
+        Key.Keystones:RebindCacheByGUID(self.primaryReadyCache, self.readyCacheByGUID)
     end
 end
 
@@ -496,8 +496,8 @@ end
 
 function ReadyCheck:CreateToggleButton(parent)
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
-    button:SetBackdrop(KeyUI.BACKDROPS.tab)
-    KeyUI:ApplyReadyToggleStyle(button, false, false)
+    button:SetBackdrop(Key.UI.BACKDROPS.tab)
+    Key.UI:ApplyReadyToggleStyle(button, false, false)
     button:SetSize(140, 24)
     button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     button.label:SetPoint("CENTER")
@@ -753,14 +753,14 @@ function ReadyCheck:RenderConsumableColumn(cell, member, status, column)
     local kindKey = column.consumableKind
     local fields = self.CONSUMABLE_STATUS_FIELDS[kindKey]
     local columnLabel = column.columnLabel or column.label
-    local consumableConfig = KeyAuras and KeyAuras:GetConsumableConfig(kindKey)
+    local consumableConfig = Key.Auras and Key.Auras:GetConsumableConfig(kindKey)
 
     if not fields then
         return
     end
 
     if kindKey == "flask" then
-        local tierMeta = KeyAuras and KeyAuras:GetQualityTierMeta(status[fields.qualityTier])
+        local tierMeta = Key.Auras and Key.Auras:GetQualityTierMeta(status[fields.qualityTier])
         self:LayoutFlaskIconCell(
             cell,
             status[fields.icon],
@@ -784,7 +784,7 @@ function ReadyCheck:RenderConsumableColumn(cell, member, status, column)
             premiumTooltip = consumableConfig and consumableConfig.eatingTooltip
         end
     elseif kindKey == "oil" and fields.qualityTier then
-        local tierMeta = KeyAuras and KeyAuras:GetQualityTierMeta(status[fields.qualityTier])
+        local tierMeta = Key.Auras and Key.Auras:GetQualityTierMeta(status[fields.qualityTier])
         goldBorder = tierMeta and tierMeta.premiumBorder
         premiumTooltip = consumableConfig and consumableConfig.premiumTooltip
     end
@@ -797,7 +797,7 @@ function ReadyCheck:RenderConsumableColumn(cell, member, status, column)
         status[fields.label],
         member.name,
         columnLabel,
-        KeyAuras and KeyAuras:GetDefaultIconForKind(kindKey, status[fields.hearty]),
+        Key.Auras and Key.Auras:GetDefaultIconForKind(kindKey, status[fields.hearty]),
         premiumTooltip,
         eating
     )
@@ -901,8 +901,8 @@ function ReadyCheck:LayoutTable(tableFrame, contentWidth, members)
         row.name:SetPoint("TOPLEFT", 0, y)
         row.name.text:SetText(member.name)
         local nr, ng, nb = 1, 1, 1
-        if KeyKeystones and member.classFilename then
-            nr, ng, nb = KeyKeystones:GetClassColor(member.classFilename)
+        if Key.Keystones and member.classFilename then
+            nr, ng, nb = Key.Keystones:GetClassColor(member.classFilename)
         end
         row.name.text:SetTextColor(nr, ng, nb)
         row.name.tooltipTitle = member.name

@@ -1,9 +1,9 @@
 local ADDON_NAME = ...
 
-KeyDebugUI = KeyDebugUI or {}
-local DebugUI = KeyDebugUI
+Key.Debug.UI = Key.Debug.UI or {}
+local DebugUI = Key.Debug.UI
 
-local UI = KeyUI
+local UI = Key.UI
 local LAYOUT = UI.LAYOUT
 
 local PADDING = LAYOUT.paddingSmall
@@ -65,8 +65,8 @@ DebugUI.DESIGN = {
 }
 
 local function PlainLogLine(entry)
-    if KeyLog and KeyLog.StripColorCodes and KeyLog.FormatEntry then
-        return KeyLog:StripColorCodes(KeyLog:FormatEntry(entry))
+    if Key.Log and Key.Log.StripColorCodes and Key.Log.FormatEntry then
+        return Key.Log:StripColorCodes(Key.Log:FormatEntry(entry))
     end
     return tostring(entry and entry.message or "")
 end
@@ -232,8 +232,8 @@ function DebugUI:SelectAllLog()
 end
 
 function DebugUI:ClearLog()
-    if KeyLog and KeyLog.Clear then
-        KeyLog:Clear()
+    if Key.Log and Key.Log.Clear then
+        Key.Log:Clear()
     end
 
     if self.frame then
@@ -246,8 +246,8 @@ function DebugUI:DumpData()
     self.frame:Show()
 
     self._batchUpdate = true
-    if KeyDebugData and KeyDebugData.DumpToLog then
-        KeyDebugData:DumpToLog()
+    if Key.Debug.Data and Key.Debug.Data.DumpToLog then
+        Key.Debug.Data:DumpToLog()
     end
     self._batchUpdate = false
 
@@ -291,7 +291,7 @@ function DebugUI:EnsureFrame()
     frame.logEditBox = logEditBox
     self.frame = frame
 
-    KeyLog:Subscribe(function(entry, cleared)
+    Key.Log:Subscribe(function(entry, cleared)
         if not self.frame or not self.frame:IsShown() or self._batchUpdate then
             return
         end
@@ -309,7 +309,7 @@ function DebugUI:RenderLog(entry, cleared, scrollToTop)
         local current = logEditBox._storedText or ""
         SetLogEditText(frame, AppendLine(current, entry, cleared), scrollToTop)
     else
-        local plainText = KeyLog.GetPlainText and KeyLog:GetPlainText() or KeyLog:GetText()
+        local plainText = Key.Log.GetPlainText and Key.Log:GetPlainText() or Key.Log:GetText()
         SetLogEditText(frame, plainText, scrollToTop)
     end
 end
@@ -318,32 +318,32 @@ function DebugUI:ShowConsole()
     self:EnsureFrame()
     self.frame:Show()
     self:RenderLog(nil, false)
-    if KeyClickDebug and KeyClickDebug.Enable then
-        KeyClickDebug:Enable()
+    if Key.Debug.Click and Key.Debug.Click.Enable then
+        Key.Debug.Click:Enable()
     end
-    KeyLog:WriteEvent(KeyLog.FEATURE.DEBUG, KeyLog.STATUS.INFO, "Debug console opened.", {
+    Key.Log:WriteEvent(Key.Log.FEATURE.DEBUG, Key.Log.STATUS.INFO, "Debug console opened.", {
         source = "ShowConsole",
     })
-    if KeyBDUpdates and KeyBDUpdates.RegisterAuraChannels then
-        KeyBDUpdates:RegisterAuraChannels("debug-open")
+    if Key.BDUpdates and Key.BDUpdates.RegisterAuraChannels then
+        Key.BDUpdates:RegisterAuraChannels("debug-open")
     end
-    if KeyBDUpdates and KeyBDUpdates.UpdatePolling then
-        KeyBDUpdates:UpdatePolling()
+    if Key.BDUpdates and Key.BDUpdates.UpdatePolling then
+        Key.BDUpdates:UpdatePolling()
     end
-    if KeyAurasLog and KeyAurasLog.LogConsumableDiagnostics then
-        KeyAurasLog:LogConsumableDiagnostics("player")
+    if Key.AurasLog and Key.AurasLog.LogConsumableDiagnostics then
+        Key.AurasLog:LogConsumableDiagnostics("player")
     end
-    if KeyAurasLog and KeyAurasLog.LogUnitAuras then
-        KeyAurasLog:LogUnitAuras("player", "Snapshot")
+    if Key.AurasLog and Key.AurasLog.LogUnitAuras then
+        Key.AurasLog:LogUnitAuras("player", "Snapshot")
     end
-    if KeyLog and KeyLog.LogMinimapSnapshot then
-        KeyLog:LogMinimapSnapshot()
+    if Key.Log and Key.Log.LogMinimapSnapshot then
+        Key.Log:LogMinimapSnapshot()
     end
-    if KeyLog and KeyLog.LogTeleportBarSnapshot then
-        KeyLog:LogTeleportBarSnapshot()
+    if Key.Log and Key.Log.LogTeleportBarSnapshot then
+        Key.Log:LogTeleportBarSnapshot()
     end
-    if KeyLog and KeyLog.LogPartyCompleteSnapshot then
-        KeyLog:LogPartyCompleteSnapshot()
+    if Key.Log and Key.Log.LogPartyCompleteSnapshot then
+        Key.Log:LogPartyCompleteSnapshot()
     end
 end
 

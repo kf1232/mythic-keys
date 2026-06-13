@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyApiInventoryDurability = KeyApiInventoryDurability or {}
-local API = KeyApiInventoryDurability
+Key.Api.InventoryDurability = Key.Api.InventoryDurability or {}
+local API = Key.Api.InventoryDurability
 
 function API:GetSlotDurability(slot)
     if not GetInventoryItemDurability then

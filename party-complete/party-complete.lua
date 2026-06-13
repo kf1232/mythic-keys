@@ -1,10 +1,10 @@
 local ADDON_NAME = ...
 
-KeyTeleports = KeyTeleports or {}
-local Teleports = KeyTeleports
+Key.Teleports = Key.Teleports or {}
+local Teleports = Key.Teleports
 
 if not Teleports.SEASON_DUNGEONS then
-    error("KeyTeleports.SEASON_DUNGEONS is missing. Load teleport-bar-data.lua before party-complete.lua.")
+    error("Key.Teleports.SEASON_DUNGEONS is missing. Load teleport-bar-data.lua before party-complete.lua.")
 end
 
 Teleports.MAX_BEST_ROWS = 40
@@ -178,8 +178,8 @@ function Teleports:LayoutBestTable(tableFrame, contentWidth, members)
         for colIndex, dungeon in ipairs(self.SEASON_DUNGEONS) do
             local cell = row[colIndex]
             local level, overTime = 0, false
-            if KeyKeystones and member.unit then
-                level, overTime = KeyKeystones:GetMemberBestForMap(member.unit, dungeon.challengeModeID)
+            if Key.Keystones and member.unit then
+                level, overTime = Key.Keystones:GetMemberBestForMap(member.unit, dungeon.challengeModeID)
             end
 
             cell:SetSize(slotSize, rowHeight)
@@ -194,8 +194,8 @@ function Teleports:LayoutBestTable(tableFrame, contentWidth, members)
     local tableHeight = self:GetBestTableHeight(memberCount, contentWidth)
     tableFrame:SetSize(contentWidth, tableHeight)
 
-    if KeyPartyCompleteLog and KeyPartyCompleteLog.LogBestTableLayout then
-        KeyPartyCompleteLog:LogBestTableLayout(contentWidth, memberCount, tableHeight)
+    if Key.PartyCompleteLog and Key.PartyCompleteLog.LogBestTableLayout then
+        Key.PartyCompleteLog:LogBestTableLayout(contentWidth, memberCount, tableHeight)
     end
 
     return tableHeight

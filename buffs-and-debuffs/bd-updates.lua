@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyBDUpdates = KeyBDUpdates or {}
-local Updates = KeyBDUpdates
+Key.BDUpdates = Key.BDUpdates or {}
+local Updates = Key.BDUpdates
 
 Updates.POLL_INTERVAL = 5
 Updates.auraFrame = Updates.auraFrame or CreateFrame("Frame")
@@ -10,12 +10,12 @@ Updates.eventFrame = Updates.eventFrame or CreateFrame("Frame")
 Updates.watchedUnits = Updates.watchedUnits or {}
 
 local function Log()
-    return KeyAurasLog
+    return Key.AurasLog
 end
 
 local function RunProtected(context, fn, ...)
-    if KeyLog and KeyLog.RunProtected then
-        return KeyLog:RunProtected(context, fn, ...)
+    if Key.Log and Key.Log.RunProtected then
+        return Key.Log:RunProtected(context, fn, ...)
     end
 
     return fn(...)
@@ -65,8 +65,8 @@ local function FingerprintValue(value, fallback)
         return fallback or ""
     end
 
-    if KeyLog and KeyLog.TryDisplayValue then
-        return KeyLog:TryDisplayValue(value) or fallback or ""
+    if Key.Log and Key.Log.TryDisplayValue then
+        return Key.Log:TryDisplayValue(value) or fallback or ""
     end
 
     local ok, text = pcall(tostring, value)
@@ -100,9 +100,9 @@ function Updates:TraceConsumableState(unit, reason)
 end
 
 function Updates:ShouldRefreshReadyUI()
-    return KeyPartyUI
-        and KeyPartyUI.IsShown and KeyPartyUI:IsShown()
-        and KeyPartyUI.IsReadyTabActive and KeyPartyUI:IsReadyTabActive()
+    return Key.PartyUI
+        and Key.PartyUI.IsShown and Key.PartyUI:IsShown()
+        and Key.PartyUI.IsReadyTabActive and Key.PartyUI:IsReadyTabActive()
 end
 
 function Updates:ScheduleConsumablePoll()
@@ -112,7 +112,7 @@ function Updates:ScheduleConsumablePoll()
 
     self.consumablePollTimer = C_Timer.After(0, function()
         self.consumablePollTimer = nil
-        RunProtected("KeyBDUpdates:PollConsumableChanges", function()
+        RunProtected("Key.BDUpdates:PollConsumableChanges", function()
             self:PollConsumableChanges()
         end)
     end)
@@ -214,13 +214,13 @@ function Updates:RegisterAuraChannels(reason)
 end
 
 function Updates:GetConsumableFingerprint()
-    if not KeyAuras or not KeyAuras.GetConsumableStatus then
+    if not Key.Auras or not Key.Auras.GetConsumableStatus then
         return ""
     end
 
     local ok, fingerprint = pcall(function()
         local food, _, flaskReady, flaskLabel, oil, oilLabel, _, _, oilIcon, flaskIcon, flaskQualityTier, _, oilQualityTier,
-            foodEating, foodEatingLabel = KeyAuras:GetConsumableStatus("player")
+            foodEating, foodEatingLabel = Key.Auras:GetConsumableStatus("player")
         return table.concat({
             food and "1" or "0",
             foodEating and "1" or "0",
@@ -240,12 +240,12 @@ function Updates:GetConsumableFingerprint()
 end
 
 function Updates:HasActiveFlaskTimer()
-    if not KeyAuras or not KeyAuras.GetConsumableStatus then
+    if not Key.Auras or not Key.Auras.GetConsumableStatus then
         return false
     end
 
     local ok, flaskReady, hasRemaining = pcall(function()
-        local _, _, ready, _, _, _, _, _, _, _, _, remaining = KeyAuras:GetConsumableStatus("player")
+        local _, _, ready, _, _, _, _, _, _, _, _, remaining = Key.Auras:GetConsumableStatus("player")
         if not ready then
             return false, false
         end
@@ -262,7 +262,7 @@ function Updates:HasActiveFlaskTimer()
 end
 
 function Updates:ShouldRunPollTicker()
-    local partyShown = KeyPartyUI and KeyPartyUI.IsShown and KeyPartyUI:IsShown()
+    local partyShown = Key.PartyUI and Key.PartyUI.IsShown and Key.PartyUI:IsShown()
     return partyShown and not IsInCombat()
 end
 
@@ -291,7 +291,7 @@ function Updates:UpdatePolling()
                     return
                 end
 
-                RunProtected("KeyBDUpdates:PollConsumableChanges", function()
+                RunProtected("Key.BDUpdates:PollConsumableChanges", function()
                     self:PollConsumableChanges()
                 end)
             end)
@@ -358,8 +358,8 @@ function Updates:PollConsumableChanges()
 end
 
 function Updates:RefreshReadyConsumables(immediate, reason)
-    local partyShown = KeyPartyUI and KeyPartyUI.IsShown and KeyPartyUI:IsShown()
-    local readyTab = KeyPartyUI and KeyPartyUI.IsReadyTabActive and KeyPartyUI:IsReadyTabActive()
+    local partyShown = Key.PartyUI and Key.PartyUI.IsShown and Key.PartyUI:IsShown()
+    local readyTab = Key.PartyUI and Key.PartyUI.IsReadyTabActive and Key.PartyUI:IsReadyTabActive()
 
     self:Trace(string.format(
         "RefreshReadyConsumables reason=%s immediate=%s partyShown=%s readyTab=%s",
@@ -382,42 +382,42 @@ function Updates:RefreshReadyConsumables(immediate, reason)
 end
 
 function Updates:SyncPlayerReadyPayload(reason)
-    if not KeyPartySync then
-        self:Trace(string.format("SyncPlayerReadyPayload (%s) skipped: KeyPartySync missing", reason or "?"))
+    if not Key.PartySync then
+        self:Trace(string.format("SyncPlayerReadyPayload (%s) skipped: Key.PartySync missing", reason or "?"))
         return
     end
 
-    KeyPartySync:PushReady(false)
+    Key.PartySync:PushReady(false)
 
     self:Trace(string.format(
         "SyncPlayerReadyPayload (%s) pushed %s",
         reason or "?",
-        tostring(KeyPartySync.lastReadyPayload or "(none)")
+        tostring(Key.PartySync.lastReadyPayload or "(none)")
     ))
     self:TraceConsumableState("player", "after sync")
 end
 
 function Updates:InvalidatePlayerReadyState()
-    if not KeyPartySync then
+    if not Key.PartySync then
         return
     end
 
     self:Trace("InvalidatePlayerReadyState")
-    KeyPartySync:InvalidatePayloadCache("ready")
-    KeyPartySync:PushReady(false)
-    KeyPartySync:PushReadyState(false)
+    Key.PartySync:InvalidatePayloadCache("ready")
+    Key.PartySync:PushReady(false)
+    Key.PartySync:PushReadyState(false)
 end
 
 function Updates:LogUnitAurasIfDebugging(unit, reason)
-    if not KeyDebugUI or not KeyDebugUI:IsShown() then
+    if not Key.Debug.UI or not Key.Debug.UI:IsShown() then
         return
     end
 
-    if not KeyLog or not KeyLog.ShouldLogAuras or not KeyLog:ShouldLogAuras(unit) then
+    if not Key.Log or not Key.Log.ShouldLogAuras or not Key.Log:ShouldLogAuras(unit) then
         return
     end
 
-    KeyLog:LogUnitAuras(unit, reason)
+    Key.Log:LogUnitAuras(unit, reason)
 end
 
 function Updates:RunConsumableRefresh(channel)
@@ -450,7 +450,7 @@ function Updates:OnPlayerSpellcastSucceeded(unit, castGUID, spellId)
         return
     end
 
-    if not KeyAuras or not KeyAuras.IsKnownConsumableSpell or not KeyAuras:IsKnownConsumableSpell(spellId) then
+    if not Key.Auras or not Key.Auras.IsKnownConsumableSpell or not Key.Auras:IsKnownConsumableSpell(spellId) then
         return
     end
 
@@ -481,7 +481,7 @@ function Updates:InstallAuraChannels()
     self.channelsInstalled = true
 
     self.auraFrame:SetScript("OnEvent", function(_, event, unit)
-        RunProtected("KeyBDUpdates:" .. tostring(event), function()
+        RunProtected("Key.BDUpdates:" .. tostring(event), function()
             if event == "UNIT_AURA" then
                 self:OnUnitAura(unit)
             elseif event == "UNIT_INVENTORY_CHANGED" then
@@ -494,7 +494,7 @@ function Updates:InstallAuraChannels()
     end
 
     self.spellcastFrame:SetScript("OnEvent", function(_, event, unit, castGUID, spellId)
-        RunProtected("KeyBDUpdates:UNIT_SPELLCAST_SUCCEEDED", function()
+        RunProtected("Key.BDUpdates:UNIT_SPELLCAST_SUCCEEDED", function()
             if event == "UNIT_SPELLCAST_SUCCEEDED" then
                 self:OnPlayerSpellcastSucceeded(unit, castGUID, spellId)
             end
@@ -532,7 +532,7 @@ function Updates:Install()
     end
 
     eventFrame:SetScript("OnEvent", function(_, event)
-        RunProtected("KeyBDUpdates:" .. tostring(event), function()
+        RunProtected("Key.BDUpdates:" .. tostring(event), function()
             if event == "PLAYER_LOGIN"
                 or event == "PLAYER_ENTERING_WORLD"
                 or event == "GROUP_JOINED"
@@ -551,7 +551,7 @@ function Updates:Install()
     self:Trace(string.format("Install complete (poll every %ds)", self.POLL_INTERVAL))
 end
 
-RunProtected("KeyBDUpdates:Install", function()
+RunProtected("Key.BDUpdates:Install", function()
     Updates:Install()
 end)
 

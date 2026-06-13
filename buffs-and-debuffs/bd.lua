@@ -1,19 +1,19 @@
 local ADDON_NAME = ...
 
-KeyAuras = KeyAuras or {}
-local Auras = KeyAuras
+Key.Auras = Key.Auras or {}
+local Auras = Key.Auras
 
 local function GetMidnightData()
-    local data = KeyAurasData and KeyAurasData.midnight
+    local data = Key.AurasData and Key.AurasData.midnight
     if not data then
-        error("KeyAurasData.midnight is missing. Load bd-midnight-data.lua before bd.lua.")
+        error("Key.AurasData.midnight is missing. Load bd-midnight-data.lua before bd.lua.")
     end
     return data
 end
 
 local function ResolveSpellIcon(spellId)
-    if KeyApiCSpell and KeyApiCSpell.ResolveIcon then
-        return KeyApiCSpell:ResolveIcon(spellId)
+    if Key.Api.Spell and Key.Api.Spell.ResolveIcon then
+        return Key.Api.Spell:ResolveIcon(spellId)
     end
     return nil
 end
@@ -137,28 +137,28 @@ function Auras:MergeAuraSources(aura, rawAura)
 end
 
 function Auras:BuildReadableAuraLookup(unit, filter)
-    if KeyApiCUnitAuras and KeyApiCUnitAuras.BuildReadableLookup then
-        return KeyApiCUnitAuras:BuildReadableLookup(unit, filter)
+    if Key.Api.UnitAuras and Key.Api.UnitAuras.BuildReadableLookup then
+        return Key.Api.UnitAuras:BuildReadableLookup(unit, filter)
     end
     return {}
 end
 
 function Auras:ScanAuras(unit, filter, callback)
-    if not KeyApiCUnitAuras or not KeyApiCUnitAuras.Scan then
+    if not Key.Api.UnitAuras or not Key.Api.UnitAuras.Scan then
         return
     end
 
-    KeyApiCUnitAuras:Scan(unit, filter, callback, function(readableAura, rawAura)
+    Key.Api.UnitAuras:Scan(unit, filter, callback, function(readableAura, rawAura)
         return self:MergeAuraSources(readableAura, rawAura)
     end)
 end
 
 function Auras:CollectAuras(unit, filter)
-    if not KeyApiCUnitAuras or not KeyApiCUnitAuras.Collect then
+    if not Key.Api.UnitAuras or not Key.Api.UnitAuras.Collect then
         return {}
     end
 
-    return KeyApiCUnitAuras:Collect(unit, filter, function(readableAura, rawAura)
+    return Key.Api.UnitAuras:Collect(unit, filter, function(readableAura, rawAura)
         return self:MergeAuraSources(readableAura, rawAura)
     end)
 end
@@ -329,8 +329,8 @@ function Auras:GetAuraNameCandidates(aura, displayFn)
 
     addName(aura and aura.name)
 
-    if aura and aura.spellId and KeyApiCSpell and KeyApiCSpell.GetSpellInfo then
-        local spellInfo = KeyApiCSpell:GetSpellInfo(aura.spellId)
+    if aura and aura.spellId and Key.Api.Spell and Key.Api.Spell.GetSpellInfo then
+        local spellInfo = Key.Api.Spell:GetSpellInfo(aura.spellId)
         if spellInfo and spellInfo.name then
             addName(spellInfo.name)
         end
@@ -440,8 +440,8 @@ function Auras:GetDefaultIconForKind(kindKey, hearty)
 end
 
 function Auras:GetSpellIcon(spellId)
-    if KeyApiCSpell and KeyApiCSpell.GetIcon then
-        return KeyApiCSpell:GetIcon(spellId)
+    if Key.Api.Spell and Key.Api.Spell.GetIcon then
+        return Key.Api.Spell:GetIcon(spellId)
     end
     return nil
 end
@@ -581,11 +581,11 @@ function Auras:GetAuraKindHint(aura, rawAura, displayFn)
 end
 
 function Auras:GetPlayerWeaponOilHit()
-    if not KeyApiWeaponEnchant or not KeyApiWeaponEnchant.GetInfo then
+    if not Key.Api.WeaponEnchant or not Key.Api.WeaponEnchant.GetInfo then
         return nil
     end
 
-    local weaponEnchant = KeyApiWeaponEnchant:GetInfo()
+    local weaponEnchant = Key.Api.WeaponEnchant:GetInfo()
     if not weaponEnchant then
         return nil
     end
@@ -774,8 +774,8 @@ function Auras:GetConsumableDiagnostics(unit)
         }
     end)
 
-    if UnitIsUnit(unit, "player") and KeyApiWeaponEnchant and KeyApiWeaponEnchant.GetInfo then
-        local weaponEnchant = KeyApiWeaponEnchant:GetInfo()
+    if UnitIsUnit(unit, "player") and Key.Api.WeaponEnchant and Key.Api.WeaponEnchant.GetInfo then
+        local weaponEnchant = Key.Api.WeaponEnchant:GetInfo()
         local enchantId = weaponEnchant and weaponEnchant.enchantId
         local accessibleEnchantId = enchantId and (not issecretvalue or not issecretvalue(enchantId)) and enchantId or nil
         local knownOil = accessibleEnchantId and self:GetKnownOilEntry(accessibleEnchantId)

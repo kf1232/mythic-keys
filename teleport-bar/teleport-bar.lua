@@ -1,10 +1,10 @@
 local ADDON_NAME = ...
 
-KeyTeleports = KeyTeleports or {}
-local Teleports = KeyTeleports
+Key.Teleports = Key.Teleports or {}
+local Teleports = Key.Teleports
 
 if not Teleports.SEASON_DUNGEONS then
-    error("KeyTeleports.SEASON_DUNGEONS is missing. Load teleport-bar-data.lua before teleport-bar.lua.")
+    error("Key.Teleports.SEASON_DUNGEONS is missing. Load teleport-bar-data.lua before teleport-bar.lua.")
 end
 
 Teleports.COLUMNS = 8
@@ -78,8 +78,8 @@ function Teleports:GetDungeonTexture(challengeModeID)
 end
 
 function Teleports:GetDungeonDisplayName(challengeModeID, fallback)
-    if KeyKeystones and KeyKeystones.GetDungeonName then
-        local name = KeyKeystones:GetDungeonName(challengeModeID)
+    if Key.Keystones and Key.Keystones.GetDungeonName then
+        local name = Key.Keystones:GetDungeonName(challengeModeID)
         if name and name ~= "Unknown" then
             return name
         end
@@ -141,20 +141,20 @@ function Teleports:HandleTeleportClick(spellID)
     self.lastClickSpellID = spellID
     self.lastClickTime = now
 
-    if KeyClickDebug and KeyClickDebug.LogAction then
-        KeyClickDebug:LogAction("teleport.slot.action", spellID)
+    if Key.Debug.Click and Key.Debug.Click.LogAction then
+        Key.Debug.Click:LogAction("teleport.slot.action", spellID)
     end
 
     if not self:IsSpellKnown(spellID) then
-        if KeyTeleportBarLog and KeyTeleportBarLog.LogTeleport then
-            KeyTeleportBarLog:LogTeleport(spellID, "unavailable")
+        if Key.TeleportBarLog and Key.TeleportBarLog.LogTeleport then
+            Key.TeleportBarLog:LogTeleport(spellID, "unavailable")
         end
         return
     end
 
     local remaining = self:GetSpellCooldownRemaining(spellID)
-    if remaining > 0 and KeyTeleportBarLog and KeyTeleportBarLog.LogTeleport then
-        KeyTeleportBarLog:LogTeleport(spellID, "cooldown", remaining)
+    if remaining > 0 and Key.TeleportBarLog and Key.TeleportBarLog.LogTeleport then
+        Key.TeleportBarLog:LogTeleport(spellID, "cooldown", remaining)
     end
 end
 
@@ -218,8 +218,8 @@ function Teleports:CreateSlot(parent, index, dungeon)
         edgeSize = 8,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    slot:SetBackdropColor(unpack(KeyUI:GetTheme().slotBg))
-    slot:SetBackdropBorderColor(unpack(KeyUI:GetTheme().slotBorder))
+    slot:SetBackdropColor(unpack(Key.UI:GetTheme().slotBg))
+    slot:SetBackdropBorderColor(unpack(Key.UI:GetTheme().slotBorder))
 
     local icon = slot:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", 4, -4)
@@ -285,7 +285,7 @@ function Teleports:CreateSlot(parent, index, dungeon)
 end
 
 function Teleports:GetClassColor(classFilename)
-    return KeyKeystones:GetClassColor(classFilename)
+    return Key.Keystones:GetClassColor(classFilename)
 end
 
 function Teleports:SetClassIcon(texture, classFilename)
@@ -517,12 +517,12 @@ function Teleports:UpdateSlotBorder(slot, dungeon)
     slot.action:SetAttribute("spell", dungeon.spellID)
 
     if self:IsSpellKnown(dungeon.spellID) then
-        local theme = KeyUI:GetTheme()
+        local theme = Key.UI:GetTheme()
         slot:SetBackdropBorderColor(unpack(theme.slotActiveBorder))
         slot.action:Enable()
         slot.action:EnableMouse(true)
     else
-        slot:SetBackdropBorderColor(unpack(KeyUI:GetTheme().slotBorder))
+        slot:SetBackdropBorderColor(unpack(Key.UI:GetTheme().slotBorder))
         slot.icon:SetDesaturated(true)
         slot.icon:SetAlpha(0.45)
         slot.action:Disable()
@@ -603,7 +603,7 @@ function Teleports:LayoutBar(bar, contentWidth)
     local columns, rows, slotSize = self:ComputeLayout(contentWidth)
     local gap = self.LAYOUT_GAP
     local pitch = slotSize + gap
-    local tokensByMap = KeyKeystones and KeyKeystones:GetPartyKeyTokensByMap() or {}
+    local tokensByMap = Key.Keystones and Key.Keystones:GetPartyKeyTokensByMap() or {}
 
     for i, dungeon in ipairs(self.SEASON_DUNGEONS) do
         local slot = bar.slots[i]
@@ -627,8 +627,8 @@ function Teleports:LayoutBar(bar, contentWidth)
     local barHeight = (rows * slotSize) + ((rows - 1) * gap)
     bar:SetSize(contentWidth, barHeight)
 
-    if KeyTeleportBarLog and KeyTeleportBarLog.LogBarLayout then
-        KeyTeleportBarLog:LogBarLayout(contentWidth, barHeight, slotSize)
+    if Key.TeleportBarLog and Key.TeleportBarLog.LogBarLayout then
+        Key.TeleportBarLog:LogBarLayout(contentWidth, barHeight, slotSize)
     end
 
     return barHeight, slotSize, pitch
@@ -677,10 +677,10 @@ function Teleports:InitEvents()
             if event == "PLAYER_REGEN_ENABLED" or event == "SPELLS_CHANGED" then
                 Teleports:RefreshActionButtons()
                 if event == "SPELLS_CHANGED"
-                    and KeyTeleportBarLog
-                    and KeyTeleportBarLog.LogRefreshActionButtons
+                    and Key.TeleportBarLog
+                    and Key.TeleportBarLog.LogRefreshActionButtons
                 then
-                    KeyTeleportBarLog:LogRefreshActionButtons()
+                    Key.TeleportBarLog:LogRefreshActionButtons()
                 end
                 return
             end
@@ -691,8 +691,8 @@ function Teleports:InitEvents()
                     return
                 end
 
-                if KeyTeleportBarLog and KeyTeleportBarLog.LogTeleport then
-                    KeyTeleportBarLog:LogTeleport(spellID, "cast")
+                if Key.TeleportBarLog and Key.TeleportBarLog.LogTeleport then
+                    Key.TeleportBarLog:LogTeleport(spellID, "cast")
                 end
                 return
             end
@@ -714,15 +714,15 @@ function Teleports:InitEvents()
                     or message:find("cooldown", 1, true)
                     or message:find("Can't do that yet", 1, true)
                 then
-                    if KeyTeleportBarLog and KeyTeleportBarLog.LogTeleport then
-                        KeyTeleportBarLog:LogTeleport(spellID, "error", message)
+                    if Key.TeleportBarLog and Key.TeleportBarLog.LogTeleport then
+                        Key.TeleportBarLog:LogTeleport(spellID, "error", message)
                     end
                 end
             end
         end
 
-        if KeyLog and KeyLog.RunProtected then
-            KeyLog:RunProtected("Teleports:" .. tostring(event), HandleEvent)
+        if Key.Log and Key.Log.RunProtected then
+            Key.Log:RunProtected("Teleports:" .. tostring(event), HandleEvent)
         else
             HandleEvent()
         end

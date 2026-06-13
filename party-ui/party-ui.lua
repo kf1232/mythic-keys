@@ -1,7 +1,7 @@
 local ADDON_NAME = ...
 
-KeyPartyUI = KeyPartyUI or {}
-local PartyUI = KeyPartyUI
+Key.PartyUI = Key.PartyUI or {}
+local PartyUI = Key.PartyUI
 
 local HEADER_HEIGHT = 28
 local PADDING = 10
@@ -19,22 +19,22 @@ PartyUI.refreshLockUntil = PartyUI.refreshLockUntil or 0
 PartyUI.REFRESH_COOLDOWN = 10
 
 local function GetDefaultFrameWidth()
-    if KeyTeleports and KeyTeleports.GetDefaultFrameWidth then
-        return KeyTeleports:GetDefaultFrameWidth(PADDING)
+    if Key.Teleports and Key.Teleports.GetDefaultFrameWidth then
+        return Key.Teleports:GetDefaultFrameWidth(PADDING)
     end
     return 848
 end
 
 local function GetMinFrameWidth()
-    if KeyTeleports and KeyTeleports.GetMinFrameWidth then
-        return KeyTeleports:GetMinFrameWidth(PADDING)
+    if Key.Teleports and Key.Teleports.GetMinFrameWidth then
+        return Key.Teleports:GetMinFrameWidth(PADDING)
     end
     return 248
 end
 
 local function GetFrameLimits()
-    if KeyTeleports then
-        return KeyTeleports:GetMinFrameWidth(PADDING), KeyTeleports:GetMaxFrameWidth(PADDING)
+    if Key.Teleports then
+        return Key.Teleports:GetMinFrameWidth(PADDING), Key.Teleports:GetMaxFrameWidth(PADDING)
     end
     return GetMinFrameWidth(), MAX_FRAME_WIDTH
 end
@@ -43,15 +43,15 @@ local DEFAULT_FRAME_WIDTH = GetDefaultFrameWidth()
 local MIN_FRAME_WIDTH = GetMinFrameWidth()
 
 function PartyUI:CollectMembers()
-    if KeyKeystones and KeyKeystones.CollectMembers then
-        return KeyKeystones:CollectMembers()
+    if Key.Keystones and Key.Keystones.CollectMembers then
+        return Key.Keystones:CollectMembers()
     end
 
     return {}
 end
 
 function PartyUI:GetContentWidth()
-    local minContent = KeyTeleports and KeyTeleports:GetMinContentWidth() or (MIN_FRAME_WIDTH - (PADDING * 2))
+    local minContent = Key.Teleports and Key.Teleports:GetMinContentWidth() or (MIN_FRAME_WIDTH - (PADDING * 2))
     if not self.frame then
         return math.max(minContent, DEFAULT_FRAME_WIDTH - (PADDING * 2))
     end
@@ -59,7 +59,7 @@ function PartyUI:GetContentWidth()
 end
 
 function PartyUI:CreateTabButton(parent, label, tabId)
-    return KeyUI:CreateTabButton(parent, label, tabId, function()
+    return Key.UI:CreateTabButton(parent, label, tabId, function()
         PartyUI:SetActiveTab(tabId)
     end)
 end
@@ -71,7 +71,7 @@ function PartyUI:UpdateTabVisuals()
     end
 
     for tabId, button in pairs(frame.tabs) do
-        KeyUI:ApplyTabButtonStyle(button, tabId == self.activeTab)
+        Key.UI:ApplyTabButtonStyle(button, tabId == self.activeTab)
     end
 
     if frame.completionsPane then
@@ -90,8 +90,8 @@ function PartyUI:SetActiveTab(tabId)
     self.activeTab = tabId
     self:UpdateTabVisuals()
     Key.Dispatch("REFRESH_UI", { immediate = true })
-    if KeyBDUpdates and KeyBDUpdates.UpdatePolling then
-        KeyBDUpdates:UpdatePolling()
+    if Key.BDUpdates and Key.BDUpdates.UpdatePolling then
+        Key.BDUpdates:UpdatePolling()
     end
 end
 
@@ -157,7 +157,7 @@ function PartyUI:UpdateRefreshButton()
 end
 
 function PartyUI:CreateRefreshButton(parent, closeButton)
-    return KeyUI:CreateRefreshButton(parent, {
+    return Key.UI:CreateRefreshButton(parent, {
         matchSizeTo = closeButton,
         onClick = function()
             PartyUI:OnRefreshClick()
@@ -194,7 +194,7 @@ function PartyUI:EnsureRefreshButton(frame)
     end
 
     frame.refreshButton = self:CreateRefreshButton(frame, close)
-    frame.refreshButton:SetPoint("TOPRIGHT", close, "TOPLEFT", -KeyUI.LAYOUT.refreshButtonGap, 0)
+    frame.refreshButton:SetPoint("TOPRIGHT", close, "TOPLEFT", -Key.UI.LAYOUT.refreshButtonGap, 0)
     self:UpdateRefreshButton()
 end
 
@@ -206,8 +206,8 @@ function PartyUI:OnRefreshClick()
     self.refreshLockUntil = GetTime() + self.REFRESH_COOLDOWN
     self:UpdateRefreshButton()
 
-    if KeyLog and KeyLog.RunProtected then
-        KeyLog:RunProtected("PartyUI:OnRefreshClick", function()
+    if Key.Log and Key.Log.RunProtected then
+        Key.Log:RunProtected("PartyUI:OnRefreshClick", function()
             Key.Dispatch("UI_REFRESH_CLICK")
         end)
     else
@@ -234,7 +234,7 @@ function PartyUI:EnsureReadyPane(frame)
     pane:SetPoint("BOTTOMRIGHT", -PADDING, BOTTOM_INSET)
     pane:Hide()
 
-    pane.readyTable = KeyReadyCheck:EnsureTable(pane)
+    pane.readyTable = Key.ReadyCheck:EnsureTable(pane)
     pane.readyTable:SetPoint("TOPLEFT", 0, 0)
 
     frame.readyPane = pane
@@ -262,10 +262,10 @@ function PartyUI:EnsureTitleBar(frame)
         return
     end
 
-    local titleBar = KeyUI:CreateFrame(KeyUI:TitleBarConfig(), frame)
+    local titleBar = Key.UI:CreateFrame(Key.UI:TitleBarConfig(), frame)
     frame.titleBar = titleBar
 
-    KeyUI:CreateFontString(KeyUI:TitleBarLabelConfig({
+    Key.UI:CreateFontString(Key.UI:TitleBarLabelConfig({
         text = "Key",
     }), titleBar)
 
@@ -297,7 +297,7 @@ function PartyUI:EnsureFrame()
         return
     end
 
-    local frame = KeyUI:CreateFrame(KeyUI:WindowConfig({
+    local frame = Key.UI:CreateFrame(Key.UI:WindowConfig({
         name = "KeyPartyFrame",
         parent = UIParent,
         size = { DEFAULT_FRAME_WIDTH, 200 },
@@ -318,11 +318,11 @@ function PartyUI:EnsureFrame()
 
     self:EnsureTitleBar(frame)
 
-    local close = KeyUI:CreateCloseButton(frame)
+    local close = Key.UI:CreateCloseButton(frame)
     frame.closeButton = close
 
     frame.refreshButton = self:CreateRefreshButton(frame, close)
-    frame.refreshButton:SetPoint("TOPRIGHT", close, "TOPLEFT", -KeyUI.LAYOUT.refreshButtonGap, 0)
+    frame.refreshButton:SetPoint("TOPRIGHT", close, "TOPLEFT", -Key.UI.LAYOUT.refreshButtonGap, 0)
 
     self:CreateResizeHandle(frame)
     self:EnsureCompletionsPane(frame)
@@ -334,24 +334,24 @@ function PartyUI:EnsureFrame()
 end
 
 function PartyUI:RefreshReadyPane(contentWidth, members)
-    if not KeyReadyCheck then
+    if not Key.ReadyCheck then
         return self.PANE_BOTTOM_PADDING
     end
 
-    KeyReadyCheck:RebindReadyCache()
+    Key.ReadyCheck:RebindReadyCache()
 
     local pane = self.frame.readyPane
     if not pane or not pane.readyTable then
         return self.PANE_BOTTOM_PADDING
     end
 
-    local tableHeight = KeyReadyCheck:LayoutTable(pane.readyTable, contentWidth, members)
+    local tableHeight = Key.ReadyCheck:LayoutTable(pane.readyTable, contentWidth, members)
     return tableHeight + self.PANE_BOTTOM_PADDING
 end
 
 local function TraceReadyRefresh(message)
-    if KeyAurasLog and KeyAurasLog.LogUpdate then
-        KeyAurasLog:LogUpdate(message)
+    if Key.AurasLog and Key.AurasLog.LogUpdate then
+        Key.AurasLog:LogUpdate(message)
     end
 end
 
@@ -374,13 +374,13 @@ function PartyUI:RefreshReadyOnly()
         return
     end
 
-    if not KeyReadyCheck then
-        TraceReadyRefresh("RefreshReadyOnly skipped: KeyReadyCheck missing")
+    if not Key.ReadyCheck then
+        TraceReadyRefresh("RefreshReadyOnly skipped: Key.ReadyCheck missing")
         return
     end
 
-    KeyReadyCheck:RebindReadyCache()
-    KeyReadyCheck:LayoutTable(pane.readyTable, self:GetContentWidth(), self:CollectMembers())
+    Key.ReadyCheck:RebindReadyCache()
+    Key.ReadyCheck:LayoutTable(pane.readyTable, self:GetContentWidth(), self:CollectMembers())
     TraceReadyRefresh(string.format(
         "RefreshReadyOnly laid out ready table (tab=%s)",
         tostring(self.activeTab)
@@ -390,8 +390,8 @@ end
 function PartyUI:Refresh()
     self:EnsureFrame()
 
-    if KeyKeystones then
-        KeyKeystones:RebindPartyCache()
+    if Key.Keystones then
+        Key.Keystones:RebindPartyCache()
     end
 
     local frame = self.frame
@@ -426,8 +426,8 @@ function PartyUI:Refresh()
 
     self._layingOut = false
 
-    if KeyBDUpdates and KeyBDUpdates.UpdatePolling then
-        KeyBDUpdates:UpdatePolling()
+    if Key.BDUpdates and Key.BDUpdates.UpdatePolling then
+        Key.BDUpdates:UpdatePolling()
     end
 end
 
@@ -438,13 +438,13 @@ function PartyUI:TogglePanel()
     else
         Key.Dispatch("UI_PANEL_OPEN")
         self.frame:Show()
-        if KeyClickDebug and KeyClickDebug:IsEnabled() then
-            KeyClickDebug:RewireAll()
+        if Key.Debug.Click and Key.Debug.Click:IsEnabled() then
+            Key.Debug.Click:RewireAll()
         end
     end
 
-    if KeyBDUpdates and KeyBDUpdates.UpdatePolling then
-        KeyBDUpdates:UpdatePolling()
+    if Key.BDUpdates and Key.BDUpdates.UpdatePolling then
+        Key.BDUpdates:UpdatePolling()
     end
 end
 

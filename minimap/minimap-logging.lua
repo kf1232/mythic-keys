@@ -1,13 +1,13 @@
 local ADDON_NAME = ...
 
-KeyMinimapLog = KeyMinimapLog or {}
-local MinimapLog = KeyMinimapLog
+Key.MinimapLog = Key.MinimapLog or {}
+local MinimapLog = Key.MinimapLog
 
-local FEATURE = KeyLog and KeyLog.FEATURE and KeyLog.FEATURE.MINIMAP or "MINI"
+local FEATURE = Key.Log and Key.Log.FEATURE and Key.Log.FEATURE.MINIMAP or "MINI"
 local BUTTON_RADIUS = 5
 
 local function Log()
-    return KeyLog
+    return Key.Log
 end
 
 local function WriteEvent(status, payload, options)
@@ -38,14 +38,14 @@ function MinimapLog:GetShape()
 end
 
 function MinimapLog:GetOffset()
-    if not KeyApiMinimap or not KeyApiMinimap.GetOffsetForAngle or not Minimap then
+    if not Key.Api.Minimap or not Key.Api.Minimap.GetOffsetForAngle or not Minimap then
         return 0, 0
     end
-    return KeyApiMinimap:GetOffsetForAngle(Minimap, self:GetAngle(), BUTTON_RADIUS)
+    return Key.Api.Minimap:GetOffsetForAngle(Minimap, self:GetAngle(), BUTTON_RADIUS)
 end
 
 function MinimapLog:ShouldLog()
-    return KeyDebugUI and KeyDebugUI.IsShown and KeyDebugUI:IsShown()
+    return Key.Debug.UI and Key.Debug.UI.IsShown and Key.Debug.UI:IsShown()
 end
 
 function MinimapLog:Log(message, dedupeKey, dedupeWindow)
@@ -53,7 +53,7 @@ function MinimapLog:Log(message, dedupeKey, dedupeWindow)
         return
     end
 
-    WriteEvent(KeyLog.STATUS.DEBUG, message, {
+    WriteEvent(Key.Log.STATUS.DEBUG, message, {
         dedupeKey = dedupeKey,
         dedupeWindow = dedupeWindow,
     })
@@ -61,13 +61,13 @@ end
 
 function MinimapLog:LogSnapshot()
     local x, y = self:GetOffset()
-    WriteEvent(KeyLog.STATUS.DEBUG, string.format(
+    WriteEvent(Key.Log.STATUS.DEBUG, string.format(
         "angle=%d shape=%s offset=(%.1f, %.1f) button=%s",
         self:GetAngle(),
         self:GetShape(),
         x,
         y,
-        (KeyMinimap and KeyMinimap.button) and "yes" or "no"
+        (Key.Minimap and Key.Minimap.button) and "yes" or "no"
     ))
 end
 
