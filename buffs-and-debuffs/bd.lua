@@ -93,6 +93,24 @@ end
 
 ApplyMidnightData(GetMidnightData())
 
+local function IsSecretValue(value)
+    return issecretvalue and issecretvalue(value) or false
+end
+
+local function IsUsableValue(value)
+    if value == nil then
+        return false
+    end
+    if IsSecretValue(value) then
+        return false
+    end
+    return true
+end
+
+local function IsUsableSpellId(spellId)
+    return IsUsableValue(spellId) and spellId ~= 0
+end
+
 function Auras:MergeAuraSources(aura, rawAura)
     if not rawAura then
         return aura
@@ -204,28 +222,28 @@ function Auras:GetConsumableConfig(kindKey)
 end
 
 function Auras:GetKnownFlaskEntry(spellId)
-    if not spellId or (issecretvalue and issecretvalue(spellId)) then
+    if not IsUsableSpellId(spellId) then
         return nil
     end
     return self.FLASK_BY_SPELL_ID and self.FLASK_BY_SPELL_ID[spellId]
 end
 
 function Auras:GetKnownOilEntry(spellId)
-    if not spellId or (issecretvalue and issecretvalue(spellId)) then
+    if not IsUsableSpellId(spellId) then
         return nil
     end
     return self.OIL_BY_SPELL_ID and self.OIL_BY_SPELL_ID[spellId]
 end
 
 function Auras:GetKnownPhialEntry(spellId)
-    if not spellId or (issecretvalue and issecretvalue(spellId)) then
+    if not IsUsableSpellId(spellId) then
         return nil
     end
     return self.PHIAL_BY_SPELL_ID and self.PHIAL_BY_SPELL_ID[spellId]
 end
 
 function Auras:IsKnownConsumableSpell(spellId)
-    if not spellId or (issecretvalue and issecretvalue(spellId)) then
+    if not IsUsableSpellId(spellId) then
         return false
     end
 
@@ -238,7 +256,7 @@ function Auras:IsKnownConsumableSpell(spellId)
 end
 
 function Auras:GetKnownEntryForAura(aura, kindKey)
-    if not aura or not aura.spellId or (issecretvalue and issecretvalue(aura.spellId)) then
+    if not aura or not IsUsableSpellId(aura.spellId) then
         return nil
     end
 
@@ -254,7 +272,7 @@ function Auras:GetKnownEntryForAura(aura, kindKey)
 end
 
 function Auras:NameMatchesPatterns(name, patterns)
-    if not name or (issecretvalue and issecretvalue(name)) or not patterns then
+    if not IsUsableValue(name) or not patterns then
         return false
     end
 
@@ -294,12 +312,12 @@ function Auras:GetAuraNameCandidates(aura, displayFn)
     local names = {}
 
     local function addName(name)
-        if not name or (issecretvalue and issecretvalue(name)) then
+        if not IsUsableValue(name) then
             return
         end
         if displayFn then
             name = displayFn(name)
-            if not name or (issecretvalue and issecretvalue(name)) then
+            if not IsUsableValue(name) then
                 return
             end
         end
@@ -370,7 +388,7 @@ function Auras:IsHeartyFoodAura(aura)
 end
 
 function Auras:IsEatingAura(aura)
-    if not aura or not aura.spellId or (issecretvalue and issecretvalue(aura.spellId)) then
+    if not aura or not IsUsableSpellId(aura.spellId) then
         return false
     end
 
@@ -474,7 +492,7 @@ function Auras:GetFlaskQualityTier(aura)
 end
 
 function Auras:GetEntryQualityTierForId(entry, id)
-    if not entry or not id or (issecretvalue and issecretvalue(id)) then
+    if not entry or not IsUsableValue(id) then
         return nil
     end
 
@@ -493,7 +511,7 @@ function Auras:GetEntryQualityTierForId(entry, id)
 end
 
 function Auras:GetOilQualityTierForId(id)
-    if not id or (issecretvalue and issecretvalue(id)) then
+    if not IsUsableValue(id) then
         return nil
     end
 
@@ -775,13 +793,13 @@ function Auras:GetConsumableDiagnostics(unit)
 end
 
 function Auras:FindAuraEntryBySpellId(unit, spellId)
-    if not spellId or (issecretvalue and issecretvalue(spellId)) then
+    if not IsUsableSpellId(spellId) then
         return nil
     end
 
     for _, entry in ipairs(self:CollectAuras(unit, "HELPFUL")) do
         for _, source in ipairs({ entry.aura, entry.rawAura }) do
-            if source and source.spellId and (not issecretvalue or not issecretvalue(source.spellId)) and source.spellId == spellId then
+            if source and IsUsableSpellId(source.spellId) and source.spellId == spellId then
                 return entry
             end
         end

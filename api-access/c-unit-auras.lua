@@ -3,6 +3,16 @@ local ADDON_NAME = ...
 KeyApiCUnitAuras = KeyApiCUnitAuras or {}
 local API = KeyApiCUnitAuras
 
+local function IsUsableValue(value)
+    if value == nil then
+        return false
+    end
+    if issecretvalue and issecretvalue(value) then
+        return false
+    end
+    return true
+end
+
 function API:GetUnitAuras(unit, filter)
     if not C_UnitAuras or not C_UnitAuras.GetUnitAuras then
         return nil
@@ -114,7 +124,7 @@ function API:GetSelfSourcedBuffNames(unit, filter)
         end
 
         local sameUnit = aura.sourceUnit and UnitIsUnit(aura.sourceUnit, unit)
-        if aura.name and sameUnit then
+        if sameUnit and IsUsableValue(aura.name) then
             buffs[#buffs + 1] = aura.name
         end
 
