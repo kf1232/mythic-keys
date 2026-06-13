@@ -109,7 +109,7 @@ Addon message prefix: `KeyF`
 
 ## Author
 
-KyleF — version 1.0.0
+KyleF — version 2026.0613.1
 
 ## Use policy
 
