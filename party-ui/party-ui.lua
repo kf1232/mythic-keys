@@ -234,7 +234,7 @@ function PartyUI:EnsureReadyPane(frame)
     pane:SetPoint("BOTTOMRIGHT", -PADDING, BOTTOM_INSET)
     pane:Hide()
 
-    pane.readyTable = Key.ReadyCheck:EnsureTable(pane)
+    pane.readyTable = Key.ReadyCheck.UI:EnsureTable(pane)
     pane.readyTable:SetPoint("TOPLEFT", 0, 0)
 
     frame.readyPane = pane
@@ -338,14 +338,14 @@ function PartyUI:RefreshReadyPane(contentWidth, members)
         return self.PANE_BOTTOM_PADDING
     end
 
-    Key.ReadyCheck:RebindReadyCache()
+    Key.ReadyCheck:RebindCache()
 
     local pane = self.frame.readyPane
     if not pane or not pane.readyTable then
         return self.PANE_BOTTOM_PADDING
     end
 
-    local tableHeight = Key.ReadyCheck:LayoutTable(pane.readyTable, contentWidth, members)
+    local tableHeight = Key.ReadyCheck.UI:LayoutTable(pane.readyTable, contentWidth, members)
     return tableHeight + self.PANE_BOTTOM_PADDING
 end
 
@@ -379,8 +379,8 @@ function PartyUI:RefreshReadyOnly()
         return
     end
 
-    Key.ReadyCheck:RebindReadyCache()
-    Key.ReadyCheck:LayoutTable(pane.readyTable, self:GetContentWidth(), self:CollectMembers())
+    Key.ReadyCheck:RebindCache()
+    Key.ReadyCheck.UI:LayoutTable(pane.readyTable, self:GetContentWidth(), self:CollectMembers())
     TraceReadyRefresh(string.format(
         "RefreshReadyOnly laid out ready table (tab=%s)",
         tostring(self.activeTab)

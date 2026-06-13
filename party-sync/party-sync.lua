@@ -222,8 +222,8 @@ function Sync:OnPartyChanged()
     if Key.Keystones and Key.Keystones.RebindPartyCache then
         Key.Keystones:RebindPartyCache()
     end
-    if Key.ReadyCheck and Key.ReadyCheck.RebindReadyCache then
-        Key.ReadyCheck:RebindReadyCache()
+    if Key.ReadyCheck and Key.ReadyCheck.RebindCache then
+        Key.ReadyCheck:RebindCache()
     end
 
     self:PushAll(true)
@@ -236,8 +236,8 @@ function Sync:OnGroupLeft()
     if Key.Keystones and Key.Keystones.ClearPartyCache then
         Key.Keystones:ClearPartyCache()
     end
-    if Key.ReadyCheck and Key.ReadyCheck.ClearReadyCache then
-        Key.ReadyCheck:ClearReadyCache()
+    if Key.ReadyCheck and Key.ReadyCheck.ClearCache then
+        Key.ReadyCheck:ClearCache()
     end
     self:ClearLocalPayloadCache()
 end

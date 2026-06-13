@@ -2,22 +2,18 @@ local ADDON_NAME = ...
 
 Key.Keystones = Key.Keystones or {}
 local Keystones = Key.Keystones
+local Cache = Key.Cache
 
-Keystones.partyCache = Keystones.partyCache or {}
-Keystones.partyCacheByGUID = Keystones.partyCacheByGUID or {}
-Keystones.primaryCache = Keystones.primaryCache or {}
-Keystones.partyBestCache = Keystones.partyBestCache or {}
-Keystones.partyBestCacheByGUID = Keystones.partyBestCacheByGUID or {}
-Keystones.primaryBestCache = Keystones.primaryBestCache or {}
-Keystones.sessionPrimaryCache = Keystones.sessionPrimaryCache or {}
-Keystones.sessionPartyCache = Keystones.sessionPartyCache or {}
-Keystones.sessionPartyCacheByGUID = Keystones.sessionPartyCacheByGUID or {}
-Keystones.sessionPrimaryBestCache = Keystones.sessionPrimaryBestCache or {}
-Keystones.sessionPartyBestCache = Keystones.sessionPartyBestCache or {}
-Keystones.sessionPartyBestCacheByGUID = Keystones.sessionPartyBestCacheByGUID or {}
+function Keystones:GetKeystoneStore()
+    return Cache:GetStore(Cache.STORE.KEYSTONE)
+end
+
+function Keystones:GetSeasonBestStore()
+    return Cache:GetStore(Cache.STORE.SEASON_BEST)
+end
 
 function Keystones:IsAccessible(value)
-    return value ~= nil and (not issecretvalue or not issecretvalue(value))
+    return Cache:IsAccessible(value)
 end
 
 function Keystones:NormalizeSender(sender)
@@ -48,189 +44,6 @@ function Keystones:BuildLookupKeys(name)
         end
     end
     return result
-end
-
-function Keystones:GetSessionStores(primaryCache)
-    if primaryCache == self.primaryBestCache then
-        return self.sessionPrimaryBestCache, self.sessionPartyBestCache, self.sessionPartyBestCacheByGUID
-    end
-
-    if primaryCache == self.primaryCache then
-        return self.sessionPrimaryCache, self.sessionPartyCache, self.sessionPartyCacheByGUID
-    end
-
-    if Key.ReadyCheck and primaryCache == Key.ReadyCheck.primaryReadyCache then
-        return Key.ReadyCheck.sessionPrimaryReadyCache, Key.ReadyCheck.sessionReadyCache, Key.ReadyCheck.sessionReadyCacheByGUID
-    end
-
-    return nil, nil, nil
-end
-
-function Keystones:MirrorEntryToSession(sender, entry, primaryCache, nameCache, cacheByGUID)
-    local sessionPrimary, sessionName, sessionByGUID = self:GetSessionStores(primaryCache)
-    if not sessionPrimary then
-        return
-    end
-
-    sessionPrimary[sender] = entry
-
-    for _, key in ipairs(self:BuildLookupKeys(sender)) do
-        sessionName[key] = entry
-    end
-
-    if not sessionByGUID then
-        return
-    end
-
-    local unit = self:FindPartyUnitForSender(sender)
-    if unit then
-        local guid = UnitGUID(unit)
-        if self:IsAccessible(guid) then
-            sessionByGUID[guid] = entry
-            return
-        end
-    end
-
-    for guid, cachedEntry in pairs(cacheByGUID) do
-        if cachedEntry == entry then
-            sessionByGUID[guid] = entry
-            break
-        end
-    end
-end
-
-function Keystones:ClearSessionEntryForSender(sender, primaryCache)
-    local sessionPrimary, sessionName, sessionByGUID = self:GetSessionStores(primaryCache)
-    if not sessionPrimary then
-        return
-    end
-
-    local entry = sessionPrimary[sender]
-    sessionPrimary[sender] = nil
-
-    for _, key in ipairs(self:BuildLookupKeys(sender)) do
-        sessionName[key] = nil
-    end
-
-    if not sessionByGUID or not entry then
-        return
-    end
-
-    for guid, cachedEntry in pairs(sessionByGUID) do
-        if cachedEntry == entry then
-            sessionByGUID[guid] = nil
-        end
-    end
-end
-
-function Keystones:LookupUnitInCaches(unit, cacheByGUID, nameCache)
-    if not unit then
-        return nil
-    end
-
-    local guid = UnitGUID(unit)
-    if self:IsAccessible(guid) and cacheByGUID[guid] then
-        return cacheByGUID[guid]
-    end
-
-    local fullName = GetUnitName and GetUnitName(unit, true)
-    if self:IsAccessible(fullName) then
-        for _, key in ipairs(self:BuildLookupKeys(fullName)) do
-            if nameCache[key] then
-                return nameCache[key]
-            end
-        end
-    end
-
-    if UnitFullName then
-        local name, realm = UnitFullName(unit)
-        if self:IsAccessible(name) and self:IsAccessible(realm) and realm ~= "" then
-            for _, key in ipairs(self:BuildLookupKeys(name .. "-" .. realm)) do
-                if nameCache[key] then
-                    return nameCache[key]
-                end
-            end
-        end
-    end
-
-    local name = UnitName(unit)
-    if self:IsAccessible(name) then
-        for _, key in ipairs(self:BuildLookupKeys(name)) do
-            if nameCache[key] then
-                return nameCache[key]
-            end
-        end
-    end
-
-    return nil
-end
-
-function Keystones:LookupCachedBySender(sender, primaryCache, nameCache)
-    if not sender or sender == "" then
-        return nil
-    end
-
-    if primaryCache[sender] then
-        return primaryCache[sender]
-    end
-
-    for _, key in ipairs(self:BuildLookupKeys(sender)) do
-        if nameCache[key] then
-            return nameCache[key]
-        end
-    end
-
-    return nil
-end
-
-function Keystones:StoreEntryForSender(entry, sender, primaryCache, nameCache, cacheByGUID)
-    primaryCache[sender] = entry
-
-    for _, key in ipairs(self:BuildLookupKeys(sender)) do
-        nameCache[key] = entry
-    end
-
-    local unit = self:FindPartyUnitForSender(sender)
-    if unit then
-        local guid = UnitGUID(unit)
-        if self:IsAccessible(guid) then
-            cacheByGUID[guid] = entry
-        end
-    end
-
-    self:MirrorEntryToSession(sender, entry, primaryCache, nameCache, cacheByGUID)
-end
-
-function Keystones:ClearEntryForSender(sender, primaryCache, nameCache, cacheByGUID)
-    self:ClearSessionEntryForSender(sender, primaryCache)
-
-    primaryCache[sender] = nil
-
-    for _, key in ipairs(self:BuildLookupKeys(sender)) do
-        nameCache[key] = nil
-    end
-
-    local unit = self:FindPartyUnitForSender(sender)
-    if unit then
-        local guid = UnitGUID(unit)
-        if self:IsAccessible(guid) then
-            cacheByGUID[guid] = nil
-        end
-    end
-end
-
-function Keystones:RebindCacheByGUID(primaryCache, cacheByGUID)
-    wipe(cacheByGUID)
-
-    for sender in pairs(primaryCache) do
-        local unit = self:FindPartyUnitForSender(sender)
-        if unit then
-            local guid = UnitGUID(unit)
-            if self:IsAccessible(guid) then
-                cacheByGUID[guid] = primaryCache[sender]
-            end
-        end
-    end
 end
 
 function Keystones:CollectMembers()
@@ -434,17 +247,16 @@ function Keystones:FormatKey(key)
 end
 
 function Keystones:LookupCachedKeyBySender(sender)
-    return self:LookupCachedBySender(sender, self.primaryCache, self.partyCache)
-        or self:LookupCachedBySender(sender, self.sessionPrimaryCache, self.sessionPartyCache)
+    return Cache:ReadBySender(self:GetKeystoneStore(), sender, true)
 end
 
 function Keystones:RebindPartyCache()
-    self:RebindCacheByGUID(self.primaryCache, self.partyCacheByGUID)
-    self:RebindCacheByGUID(self.primaryBestCache, self.partyBestCacheByGUID)
+    Cache:RebindByGUID(self:GetKeystoneStore())
+    Cache:RebindByGUID(self:GetSeasonBestStore())
 end
 
 function Keystones:StorePartyKeyEntry(entry, sender)
-    self:StoreEntryForSender(entry, sender, self.primaryCache, self.partyCache, self.partyCacheByGUID)
+    Cache:Write(self:GetKeystoneStore(), sender, entry)
 end
 
 function Keystones:SetPartyKey(sender, level, mapID)
@@ -459,7 +271,7 @@ function Keystones:SetPartyKey(sender, level, mapID)
             return false
         end
 
-        self:ClearEntryForSender(sender, self.primaryCache, self.partyCache, self.partyCacheByGUID)
+        Cache:Clear(self:GetKeystoneStore(), sender)
         return true
     end
 
@@ -476,8 +288,7 @@ function Keystones:SetPartyKey(sender, level, mapID)
 end
 
 function Keystones:LookupCachedKey(unit)
-    return self:LookupUnitInCaches(unit, self.partyCacheByGUID, self.partyCache)
-        or self:LookupUnitInCaches(unit, self.sessionPartyCacheByGUID, self.sessionPartyCache)
+    return Cache:ReadByUnit(self:GetKeystoneStore(), unit, true)
 end
 
 function Keystones:GetMemberKey(unitOrSender)
@@ -495,14 +306,15 @@ function Keystones:GetMemberKey(unitOrSender)
             return key
         end
 
-        for sender, entry in pairs(self.primaryCache) do
+        for sender, entry in pairs(Cache:GetPrimary(self:GetKeystoneStore())) do
             local matchedUnit = self:FindPartyUnitForSender(sender)
             if matchedUnit and UnitIsUnit(matchedUnit, unitOrSender) then
                 return entry
             end
         end
 
-        for sender, entry in pairs(self.sessionPrimaryCache) do
+        local keystoneStore = self:GetKeystoneStore()
+        for sender, entry in pairs(keystoneStore.sessionPrimary) do
             local matchedUnit = self:FindPartyUnitForSender(sender)
             if matchedUnit and UnitIsUnit(matchedUnit, unitOrSender) then
                 return entry
@@ -514,26 +326,13 @@ function Keystones:GetMemberKey(unitOrSender)
 end
 
 function Keystones:ClearSessionCaches()
-    wipe(self.sessionPartyCache)
-    wipe(self.sessionPartyCacheByGUID)
-    wipe(self.sessionPrimaryCache)
-    wipe(self.sessionPartyBestCache)
-    wipe(self.sessionPartyBestCacheByGUID)
-    wipe(self.sessionPrimaryBestCache)
+    Cache:WipeSession(self:GetKeystoneStore())
+    Cache:WipeSession(self:GetSeasonBestStore())
 end
 
 function Keystones:RestoreSessionCacheIfNeeded()
-    if not next(self.primaryCache) and next(self.sessionPrimaryCache) then
-        for sender, entry in pairs(self.sessionPrimaryCache) do
-            self:StorePartyKeyEntry(entry, sender)
-        end
-    end
-
-    if not next(self.primaryBestCache) and next(self.sessionPrimaryBestCache) then
-        for sender, entry in pairs(self.sessionPrimaryBestCache) do
-            self:StorePartyBestEntry(entry, sender)
-        end
-    end
+    Cache:RestoreSession(self:GetKeystoneStore())
+    Cache:RestoreSession(self:GetSeasonBestStore())
 
     if Key.ReadyCheck and Key.ReadyCheck.RestoreSessionCacheIfNeeded then
         Key.ReadyCheck:RestoreSessionCacheIfNeeded()
@@ -543,13 +342,8 @@ function Keystones:RestoreSessionCacheIfNeeded()
 end
 
 function Keystones:ClearPartyCache()
-    wipe(self.partyCache)
-    wipe(self.partyCacheByGUID)
-    wipe(self.primaryCache)
-    wipe(self.partyBestCache)
-    wipe(self.partyBestCacheByGUID)
-    wipe(self.primaryBestCache)
-    self:ClearSessionCaches()
+    Cache:Wipe(self:GetKeystoneStore())
+    Cache:Wipe(self:GetSeasonBestStore())
 end
 
 function Keystones:GetSeasonDungeons()
@@ -646,7 +440,7 @@ function Keystones:ParseBestPayload(message)
 end
 
 function Keystones:StorePartyBestEntry(entry, sender)
-    self:StoreEntryForSender(entry, sender, self.primaryBestCache, self.partyBestCache, self.partyBestCacheByGUID)
+    Cache:Write(self:GetSeasonBestStore(), sender, entry)
 end
 
 function Keystones:SetPartyBest(sender, bests)
@@ -655,7 +449,7 @@ function Keystones:SetPartyBest(sender, bests)
     end
 
     if not bests or not next(bests) then
-        self:ClearEntryForSender(sender, self.primaryBestCache, self.partyBestCache, self.partyBestCacheByGUID)
+        Cache:Clear(self:GetSeasonBestStore(), sender)
         return
     end
 
@@ -663,8 +457,7 @@ function Keystones:SetPartyBest(sender, bests)
 end
 
 function Keystones:LookupCachedBest(unit)
-    return self:LookupUnitInCaches(unit, self.partyBestCacheByGUID, self.partyBestCache)
-        or self:LookupUnitInCaches(unit, self.sessionPartyBestCacheByGUID, self.sessionPartyBestCache)
+    return Cache:ReadByUnit(self:GetSeasonBestStore(), unit, true)
 end
 
 function Keystones:GetMemberBestForMap(unit, challengeModeID)

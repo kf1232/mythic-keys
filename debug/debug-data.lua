@@ -124,11 +124,11 @@ function DebugData:DumpToLog()
         local ownKey = Key.Keystones:GetOwnKeystone()
         WriteEvent(Key.Log.STATUS.DEBUG, "Player keystone: " .. Key.Keystones:FormatKey(ownKey), { dedupe = false })
 
-        self:DumpPrimaryCache("Party keystones:", Key.Keystones.primaryCache, function(entry)
+        self:DumpPrimaryCache("Party keystones:", Key.Cache:GetPrimary(Key.Keystones:GetKeystoneStore()), function(entry)
             return Key.Keystones:FormatKey(entry)
         end)
 
-        self:DumpPrimaryCache("Season bests:", Key.Keystones.primaryBestCache, function(entry)
+        self:DumpPrimaryCache("Season bests:", Key.Cache:GetPrimary(Key.Keystones:GetSeasonBestStore()), function(entry)
             return self:FormatBestSummary(entry)
         end)
     end
@@ -138,7 +138,7 @@ function DebugData:DumpToLog()
             dedupe = false,
         })
 
-        self:DumpPrimaryCache("Ready payloads:", Key.ReadyCheck.primaryReadyCache, function(entry)
+        self:DumpPrimaryCache("Ready payloads:", Key.ReadyCheck:GetPrimaryEntries(), function(entry)
             return self:FormatReadySummary(entry)
         end)
     end
