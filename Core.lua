@@ -2,7 +2,7 @@ local ADDON_NAME = ...
 
 Key = Key or {}
 
-Key.DEFAULT_ICON = 134400
+Key.DEFAULT_ICON = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\icon"
 Key.GCD_SPELL_ID = 61304
 Key.refreshDebounce = 0.1
 
@@ -89,6 +89,9 @@ Key.TRIGGERS = {
         end
         if KeyPartySync and KeyPartySync.BootstrapIfGrouped then
             KeyPartySync:BootstrapIfGrouped()
+        end
+        if KeyMinimap and KeyMinimap.Init then
+            KeyMinimap:Init()
         end
     end,
 

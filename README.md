@@ -2,7 +2,7 @@
 
 A World of Warcraft **retail** addon for Mythic+ groups: see party keystones, season bests, consumable readiness, and dungeon teleports in one resizable panel.
 
-Type `/keyf` to open the party list.
+Type `/keyf` to open the party list, or click the minimap button.
 
 ## Features
 
@@ -86,6 +86,7 @@ The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons).
 | `DebugUI.lua` / `DebugData.lua` | Debug console and data dump |
 | `ClickDebug.lua` | Optional click-hit tracing |
 | `UI.lua` | Shared frame/theme helpers |
+| `minimap/minimap-button.lua` | Minimap quick-access button |
 
 ## Development notes
 

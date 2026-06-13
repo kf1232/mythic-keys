@@ -334,6 +334,9 @@ function DebugUI:ShowConsole()
     if KeyAurasLog and KeyAurasLog.LogUnitAuras then
         KeyAurasLog:LogUnitAuras("player", "Snapshot")
     end
+    if KeyLog and KeyLog.LogMinimapSnapshot then
+        KeyLog:LogMinimapSnapshot()
+    end
 end
 
 function DebugUI:IsShown()

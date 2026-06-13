@@ -58,6 +58,12 @@ function Log:LogUnitAuras(unit, reason)
     end
 end
 
+function Log:LogMinimapSnapshot()
+    if KeyMinimapLog and KeyMinimapLog.LogSnapshot then
+        KeyMinimapLog:LogSnapshot()
+    end
+end
+
 function Log:FormatEntry(entry)
     return string.format("[%s] %s", entry.time, entry.message)
 end

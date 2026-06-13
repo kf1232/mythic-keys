@@ -559,22 +559,13 @@ function Keystones:GetSeasonDungeons()
     return {}
 end
 
-function Keystones:PickBestRun(intimeInfo, overtimeInfo)
-    local level = 0
-    local overTime = false
-
+function Keystones:PickBestRun(intimeInfo)
     local intimeLevel = intimeInfo and intimeInfo.level
     if self:IsAccessible(intimeLevel) and intimeLevel > 0 then
-        level = intimeLevel
+        return intimeLevel, false
     end
 
-    local overtimeLevel = overtimeInfo and overtimeInfo.level
-    if self:IsAccessible(overtimeLevel) and overtimeLevel > level then
-        level = overtimeLevel
-        overTime = true
-    end
-
-    return level, overTime
+    return 0, false
 end
 
 function Keystones:GetOwnBestForMap(challengeModeID)
@@ -588,8 +579,8 @@ function Keystones:GetOwnBestForMap(challengeModeID)
         return 0, false
     end
 
-    local intimeInfo, overtimeInfo = C_MythicPlus.GetSeasonBestForMap(challengeModeID)
-    return self:PickBestRun(intimeInfo, overtimeInfo)
+    local intimeInfo = C_MythicPlus.GetSeasonBestForMap(challengeModeID)
+    return self:PickBestRun(intimeInfo)
 end
 
 function Keystones:GetBestPayloadPrefix()
@@ -642,10 +633,10 @@ function Keystones:ParseBestPayload(message)
         local dungeon = self:GetSeasonDungeons()[index]
         if dungeon and level then
             level = tonumber(level)
-            if level and level > 0 then
+            if level and level > 0 and tonumber(overTime) ~= 1 then
                 bests[dungeon.challengeModeID] = {
                     level = level,
-                    overTime = tonumber(overTime) == 1,
+                    overTime = false,
                 }
             end
         end
@@ -687,8 +678,8 @@ function Keystones:GetMemberBestForMap(unit, challengeModeID)
 
     local cached = self:LookupCachedBest(unit)
     local entry = cached and cached[challengeModeID]
-    if entry and entry.level and entry.level > 0 then
-        return entry.level, entry.overTime and true or false
+    if entry and entry.level and entry.level > 0 and not entry.overTime then
+        return entry.level, false
     end
 
     return 0, false

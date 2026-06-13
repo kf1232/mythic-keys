@@ -2,8 +2,10 @@
 ## Title: Key
 ## Notes: Party list and debug console. Type /keyf to open.
 ## Author: MasFink
-## Version: 2026.0613.1
+## Version: 2026.0613.2
+## IconTexture: Interface\AddOns\mythic-keys\media\icon
 ## OptionalDeps: DBM-Core, Details
+## SavedVariables: KeyDB
 
 Log.lua
 ClickDebug.lua
@@ -11,6 +13,7 @@ api-access\c-spell.lua
 api-access\c-unit-auras.lua
 api-access\get-weapon-enchant-info.lua
 api-access\get-inventory-item-durability.lua
+api-access\minimap.lua
 buffs-and-debuffs\bd-midnight-data.lua
 buffs-and-debuffs\bd.lua
 buffs-and-debuffs\bd-logging.lua
@@ -24,6 +27,8 @@ PartySync.lua
 Teleports.lua
 ReadyCheck.lua
 PartyUI.lua
+minimap\minimap-logging.lua
+minimap\minimap-button.lua
 buffs-and-debuffs\bd-updates.lua
 DebugData.lua
 DebugUI.lua
