@@ -6,16 +6,7 @@ local Log = KeyLog
 Log.entries = Log.entries or {}
 Log.listeners = Log.listeners or {}
 Log.maxEntries = 500
-Log.auraLogThrottle = Log.auraLogThrottle or {}
 Log.dedupeCache = Log.dedupeCache or {}
-
-local function Auras()
-    return KeyAuras
-end
-
-function Log:MergeAuraSources(aura, rawAura)
-    return Auras():MergeAuraSources(aura, rawAura)
-end
 
 function Log:SafeValue(value)
     if value == nil then
@@ -42,176 +33,28 @@ function Log:TryDisplayValue(value)
 end
 
 function Log:ResolveSpellName(spellId, displayName)
-    if not spellId or not C_Spell or not C_Spell.GetSpellInfo then
-        return nil
+    if KeyApiCSpell and KeyApiCSpell.GetSpellName then
+        return KeyApiCSpell:GetSpellName(spellId, displayName)
     end
-    if issecretvalue and issecretvalue(spellId) then
-        return nil
-    end
-
-    local spellInfo = C_Spell.GetSpellInfo(spellId)
-    if not spellInfo or not spellInfo.name then
-        return nil
-    end
-
-    local spellName = self:TryDisplayValue(spellInfo.name)
-    if spellName and spellName ~= displayName then
-        return spellName
-    end
-
     return nil
-end
-
-function Log:GetAuraName(aura, rawAura)
-    if not aura and not rawAura then
-        return nil
-    end
-
-    local merged = self:MergeAuraSources(aura, rawAura)
-
-    for _, source in ipairs({ merged, rawAura, aura }) do
-        if source and source.name then
-            local name = self:TryDisplayValue(source.name)
-            if name and name ~= "[secret]" then
-                return name
-            end
-        end
-    end
-
-    if merged and merged.spellId then
-        return self:ResolveSpellName(merged.spellId, nil)
-    end
-
-    return nil
-end
-
-function Log:FormatAuraRemaining(merged)
-    if not merged
-        or not merged.expirationTime
-        or merged.expirationTime <= 0
-        or (issecretvalue and issecretvalue(merged.expirationTime))
-    then
-        return nil
-    end
-
-    local remaining = merged.expirationTime - GetTime()
-    if remaining <= 0 then
-        return nil
-    end
-
-    if remaining >= 60 then
-        return string.format("%dm", math.floor(remaining / 60 + 0.5))
-    end
-
-    return string.format("%ds", math.floor(remaining + 0.5))
-end
-
-function Log:GetAuraStacks(aura, rawAura)
-    for _, source in ipairs({ aura, rawAura }) do
-        if source then
-            local stacks = source.applications or source.count or source.charges
-            if stacks and stacks > 1 then
-                return self:TryDisplayValue(stacks)
-            end
-        end
-    end
-
-    return nil
-end
-
-function Log:GetAuraLabel(aura, rawAura)
-    local label = self:GetAuraName(aura, rawAura) or "?"
-    local merged = self:MergeAuraSources(aura, rawAura)
-    local details = {}
-    local remaining = self:FormatAuraRemaining(merged)
-    local stacks = self:GetAuraStacks(aura, rawAura)
-
-    if remaining then
-        details[#details + 1] = remaining
-    end
-
-    if stacks then
-        details[#details + 1] = "x" .. stacks
-    end
-
-    if #details == 0 then
-        return label
-    end
-
-    return label .. " (" .. table.concat(details, ", ") .. ")"
-end
-
-function Log:CollectAuras(unit, filter)
-    return Auras():CollectAuras(unit, filter)
 end
 
 function Log:ShouldLogAuras(unit)
-    local now = GetTime()
-    local nextAt = self.auraLogThrottle[unit] or 0
-    if now < nextAt then
-        return false
+    if KeyAurasLog and KeyAurasLog.ShouldLogAuras then
+        return KeyAurasLog:ShouldLogAuras(unit)
     end
-    self.auraLogThrottle[unit] = now + 0.5
-    return true
+    return false
 end
 
-function Log:LogConsumableSummary(unit)
-    if not KeyAuras then
-        return
+function Log:LogConsumableDiagnostics(unit)
+    if KeyAurasLog and KeyAurasLog.LogConsumableDiagnostics then
+        KeyAurasLog:LogConsumableDiagnostics(unit)
     end
-
-    local food, foodLabel, flask, flaskLabel, oil, oilLabel, _, foodHearty, _, _, flaskQualityTier = KeyAuras:GetConsumableStatus(unit)
-    local parts = {}
-
-    if flask then
-        local label = flaskLabel or "Flask"
-        if flaskQualityTier then
-            label = label .. " (" .. flaskQualityTier .. ")"
-        end
-        parts[#parts + 1] = label
-    end
-
-    if food then
-        local label = foodLabel or "Food"
-        if foodHearty then
-            label = "Hearty " .. label
-        end
-        parts[#parts + 1] = label
-    end
-
-    if oil then
-        parts[#parts + 1] = oilLabel or "Oil"
-    end
-
-    if #parts == 0 then
-        self:Add("  consumables: none")
-        return
-    end
-
-    self:Add("  consumables: " .. table.concat(parts, ", "))
 end
 
 function Log:LogUnitAuras(unit, reason)
-    if not unit or not UnitExists(unit) then
-        return
-    end
-
-    local buffs = self:CollectAuras(unit, "HELPFUL")
-    local debuffs = self:CollectAuras(unit, "HARMFUL")
-    local unitLabel = self:SafeValue(UnitName(unit)) or unit
-
-    self:Add(string.format(
-        "%s %s — %d buff(s), %d debuff(s)",
-        reason or "Auras",
-        unitLabel,
-        #buffs,
-        #debuffs
-    ))
-
-    self:LogConsumableSummary(unit)
-
-    for _, entry in ipairs(buffs) do
-        self:Add("  + " .. self:GetAuraLabel(entry.aura, entry.rawAura))
+    if KeyAurasLog and KeyAurasLog.LogUnitAuras then
+        KeyAurasLog:LogUnitAuras(unit, reason)
     end
 end
 
@@ -274,10 +117,27 @@ function Log:Subscribe(callback)
     table.insert(self.listeners, callback)
 end
 
+function Log:StripColorCodes(text)
+    if not text then
+        return ""
+    end
+    text = text:gsub("|c%x%x%x%x%x%x%x%x", "")
+    text = text:gsub("|r", "")
+    return text
+end
+
 function Log:GetText()
     local lines = {}
     for _, entry in ipairs(self.entries) do
         lines[#lines + 1] = self:FormatEntry(entry)
+    end
+    return table.concat(lines, "\n")
+end
+
+function Log:GetPlainText()
+    local lines = {}
+    for _, entry in ipairs(self.entries) do
+        lines[#lines + 1] = self:StripColorCodes(self:FormatEntry(entry))
     end
     return table.concat(lines, "\n")
 end
@@ -289,3 +149,93 @@ function Log:Clear()
         listener(nil, true)
     end
 end
+
+function Log:FormatError(message, context)
+    message = tostring(message or "unknown error")
+    if context and context ~= "" then
+        return string.format("[%s] %s", context, message)
+    end
+    return message
+end
+
+function Log:PrintError(message, context)
+    local text = self:FormatError(message, context)
+    local prefix = "|cffFF4444Key error:|r "
+    if DEFAULT_CHAT_FRAME then
+        for line in string.gmatch(text, "[^\n]+") do
+            DEFAULT_CHAT_FRAME:AddMessage(prefix .. line)
+        end
+    else
+        print(prefix .. text)
+    end
+end
+
+function Log:LogError(message, context, dedupeKey)
+    local text = self:FormatError(message, context)
+    self:Add("|cffff6666" .. text .. "|r", dedupeKey or ("error:" .. text), 1)
+    self:PrintError(message, context)
+end
+
+function Log:CaptureError(err)
+    local message = tostring(err or "unknown error")
+    if debugstack then
+        local stack = debugstack(2, 12, 12)
+        if stack and stack ~= "" then
+            return message .. "\n" .. stack
+        end
+    end
+    return message
+end
+
+function Log:RunProtected(context, fn, ...)
+    if type(fn) ~= "function" then
+        return false, "invalid function"
+    end
+
+    local ok, result = xpcall(fn, function(err)
+        return self:CaptureError(err)
+    end, ...)
+
+    if not ok then
+        self:LogError(result, context)
+    end
+
+    return ok, result
+end
+
+function Log:InstallErrorHandler()
+    if self.errorHandlerInstalled or not seterrorhandler or not geterrorhandler then
+        return
+    end
+
+    self.errorHandlerInstalled = true
+    local previous = geterrorhandler()
+
+    seterrorhandler(function(message)
+        self:LogError(message, "global")
+        if previous then
+            return previous(message)
+        end
+    end)
+end
+
+function Log:InstallActionBlockedHandler()
+    if self.actionBlockedInstalled then
+        return
+    end
+    self.actionBlockedInstalled = true
+
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent("ADDON_ACTION_BLOCKED")
+    frame:RegisterEvent("ADDON_ACTION_FORBIDDEN")
+    frame:SetScript("OnEvent", function(_, event, addonName, action)
+        if addonName ~= ADDON_NAME then
+            return
+        end
+        self:LogError(string.format("%s: %s", tostring(event), tostring(action)), "restricted-api")
+    end)
+end
+
+Log:InstallErrorHandler()
+Log:InstallActionBlockedHandler()
+

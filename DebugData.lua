@@ -125,6 +125,14 @@ function DebugData:DumpToLog()
         end)
     end
 
+    if KeyAurasLog and KeyAurasLog.LogConsumableDiagnostics then
+        KeyAurasLog:LogConsumableDiagnostics("player")
+    end
+
+    if KeyAurasLog and KeyAurasLog.LogUnitAuras then
+        KeyAurasLog:LogUnitAuras("player", "Dump snapshot")
+    end
+
     if KeyPartySync then
         KeyLog:Add("Sync payloads:")
         KeyLog:Add("  lastKey: " .. tostring(KeyPartySync.lastPayload or "(none)"))

@@ -18,6 +18,7 @@ ReadyCheck.ROW_HEIGHT = 20
 ReadyCheck.HEADER_HEIGHT = 18
 ReadyCheck.MAX_ROWS = 40
 ReadyCheck.ICON_SIZE = 18
+ReadyCheck.FLASK_LOW_TIME_SECONDS = 40 * 60
 
 ReadyCheck.REPAIR_THRESHOLDS = {
     { min = 90, r = 0.3, g = 0.9, b = 0.35 },
@@ -37,9 +38,15 @@ ReadyCheck.COLUMNS = {
 }
 
 ReadyCheck.CONSUMABLE_STATUS_FIELDS = {
-    food = { ok = "foodOk", icon = "foodIcon", label = "foodLabel", hearty = "foodHearty" },
-    flask = { ok = "flaskOk", icon = "flaskIcon", label = "flaskLabel", qualityTier = "flaskQualityTier" },
-    oil = { ok = "oilOk", icon = "oilIcon", label = "oilLabel" },
+    food = { ok = "foodOk", icon = "foodIcon", label = "foodLabel", hearty = "foodHearty", eating = "foodEating" },
+    flask = {
+        ok = "flaskOk",
+        icon = "flaskIcon",
+        label = "flaskLabel",
+        qualityTier = "flaskQualityTier",
+        lowTime = "flaskLowTime",
+    },
+    oil = { ok = "oilOk", icon = "oilIcon", label = "oilLabel", qualityTier = "oilQualityTier" },
 }
 
 function ReadyCheck:GetColumnConfig(key)
@@ -117,13 +124,6 @@ function ReadyCheck:ApplyCellTextAnchor(cell, justify)
     cell.text:SetJustifyH(justify)
 end
 
-function ReadyCheck:IsAccessible(value)
-    if KeyKeystones and KeyKeystones.IsAccessible then
-        return KeyKeystones:IsAccessible(value)
-    end
-    return value ~= nil and (not issecretvalue or not issecretvalue(value))
-end
-
 function ReadyCheck:BuildLookupKeys(name)
     if KeyKeystones and KeyKeystones.BuildLookupKeys then
         return KeyKeystones:BuildLookupKeys(name)
@@ -139,21 +139,10 @@ function ReadyCheck:FindPartyUnitForSender(sender)
 end
 
 function ReadyCheck:GetPlayerRepairPercent()
-    local totalCurrent, totalMax = 0, 0
-
-    for slot = INVSLOT_HEAD, INVSLOT_OFFHAND do
-        local current, maximum = GetInventoryItemDurability(slot)
-        if current and maximum and maximum > 0 then
-            totalCurrent = totalCurrent + current
-            totalMax = totalMax + maximum
-        end
+    if KeyApiInventoryDurability and KeyApiInventoryDurability.GetRepairPercent then
+        return KeyApiInventoryDurability:GetRepairPercent()
     end
-
-    if totalMax == 0 then
-        return 100
-    end
-
-    return math.floor((totalCurrent / totalMax) * 100 + 0.5)
+    return 100
 end
 
 function ReadyCheck:GetConsumableStatus(unit)
@@ -161,27 +150,12 @@ function ReadyCheck:GetConsumableStatus(unit)
 end
 
 function ReadyCheck:GetPartyBuffText(unit)
-    if not C_UnitAuras or not C_UnitAuras.GetAuraDataByIndex then
+    if not KeyApiCUnitAuras or not KeyApiCUnitAuras.GetSelfSourcedBuffNames then
         return "—"
     end
 
-    local buffs = {}
-    local index = 1
-
-    while true do
-        local aura = C_UnitAuras.GetAuraDataByIndex(unit, index, "HELPFUL|RAID")
-        if not aura then
-            break
-        end
-
-        if aura.name and aura.sourceUnit and UnitIsUnit(aura.sourceUnit, unit) then
-            buffs[#buffs + 1] = aura.name
-        end
-
-        index = index + 1
-    end
-
-    if #buffs == 0 then
+    local buffs = KeyApiCUnitAuras:GetSelfSourcedBuffNames(unit, "HELPFUL|RAID")
+    if not buffs or #buffs == 0 then
         return "—"
     end
 
@@ -190,7 +164,7 @@ end
 
 function ReadyCheck:GetPlayerSnapshot()
     local repair = self:GetPlayerRepairPercent()
-    local food, foodLabel, flask, flaskLabel, oil, oilLabel = self:GetConsumableStatus("player")
+    local food, foodLabel, flask, flaskLabel, oil, oilLabel, _, _, _, _, _, _, _, _, foodEating, foodEatingLabel = self:GetConsumableStatus("player")
 
     return {
         repair = repair,
@@ -198,7 +172,7 @@ function ReadyCheck:GetPlayerSnapshot()
         flask = flask and 1 or 0,
         oil = oil and 1 or 0,
         isReady = self.playerReady and 1 or 0,
-        foodLabel = foodLabel,
+        foodLabel = foodLabel or (foodEating and foodEatingLabel),
         flaskLabel = flaskLabel,
         oilLabel = oilLabel,
     }
@@ -414,18 +388,24 @@ function ReadyCheck:ApplyLiveConsumableStatus(status, unit, liveValues)
     for kindKey, fields in pairs(self.CONSUMABLE_STATUS_FIELDS) do
         local active = liveValues[kindKey]
         if active then
-            status[fields.ok] = true
+            status[fields.ok] = active.ok ~= false
             if fields.icon and active.icon then
                 status[fields.icon] = active.icon
             end
             if fields.hearty and active.hearty then
                 status[fields.hearty] = active.hearty
             end
+            if fields.eating and active.eating then
+                status[fields.eating] = true
+            end
             if fields.qualityTier and active.qualityTier then
                 status[fields.qualityTier] = active.qualityTier
             end
             if fields.label and active.label then
                 status[fields.label] = active.label
+            end
+            if fields.lowTime ~= nil and active.lowTime ~= nil then
+                status[fields.lowTime] = active.lowTime
             end
         elseif cached and cached[kindKey] then
             status[fields.ok] = true
@@ -443,9 +423,12 @@ function ReadyCheck:GetMemberStatus(unit)
         oilOk = false,
         foodIcon = nil,
         foodHearty = false,
+        foodEating = false,
         oilIcon = nil,
+        oilQualityTier = nil,
         flaskIcon = nil,
         flaskQualityTier = nil,
+        flaskLowTime = false,
     }
 
     if UnitIsUnit(unit, "player") then
@@ -459,11 +442,20 @@ function ReadyCheck:GetMemberStatus(unit)
         end
     end
 
-    local food, foodLabel, flask, flaskLabel, oil, oilLabel, foodIcon, foodHearty, oilIcon, flaskIcon, flaskQualityTier = self:GetConsumableStatus(unit)
+    local food, foodLabel, flaskReady, flaskLabel, oil, oilLabel, foodIcon, foodHearty, oilIcon, flaskIcon, flaskQualityTier, flaskRemaining, oilQualityTier,
+        foodEating, foodEatingLabel, foodEatingIcon = self:GetConsumableStatus(unit)
     self:ApplyLiveConsumableStatus(status, unit, {
-        food = food and { icon = foodIcon, hearty = foodHearty, label = foodLabel } or nil,
-        flask = flask and { icon = flaskIcon, qualityTier = flaskQualityTier, label = flaskLabel } or nil,
-        oil = oil and { icon = oilIcon, label = oilLabel } or nil,
+        food = food and { ok = true, icon = foodIcon, hearty = foodHearty, label = foodLabel }
+            or foodEating and { ok = false, eating = true, icon = foodEatingIcon, label = foodEatingLabel }
+            or nil,
+        flask = flaskIcon and {
+            icon = flaskIcon,
+            qualityTier = flaskQualityTier,
+            label = flaskLabel,
+            ok = flaskReady,
+            lowTime = flaskRemaining ~= nil and flaskRemaining < self.FLASK_LOW_TIME_SECONDS,
+        } or nil,
+        oil = oil and { icon = oilIcon, label = oilLabel, qualityTier = oilQualityTier } or nil,
     })
 
     status.buffsText = self:GetPartyBuffText(unit)
@@ -585,22 +577,73 @@ function ReadyCheck:EnsureIconCell(cell)
     return cell
 end
 
-function ReadyCheck:SetIconCellBorder(iconFrame, goldBorder)
-    if goldBorder then
+function ReadyCheck:SetIconCellBorder(iconFrame, goldBorder, eating)
+    if eating then
+        iconFrame:SetBackdropBorderColor(0.95, 0.75, 0.25, 1)
+    elseif goldBorder then
         iconFrame:SetBackdropBorderColor(1, 0.82, 0, 1)
     else
         iconFrame:SetBackdropBorderColor(0.35, 0.35, 0.35, 1)
     end
 end
 
-function ReadyCheck:LayoutConsumableIconCell(cell, ok, iconFileID, goldBorder, label, memberName, columnLabel, defaultIcon, premiumTooltip)
+function ReadyCheck:SetFlaskIconBorder(iconFrame, goldBorder, lowTime)
+    local edgeSize = lowTime and 3 or 1
+    iconFrame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        tile = false,
+        edgeSize = edgeSize,
+        insets = { left = edgeSize, right = edgeSize, top = edgeSize, bottom = edgeSize },
+    })
+    iconFrame:SetBackdropColor(0.08, 0.08, 0.08, 0.9)
+
+    if lowTime then
+        iconFrame:SetBackdropBorderColor(0.9, 0.35, 0.35, 1)
+    elseif goldBorder then
+        iconFrame:SetBackdropBorderColor(1, 0.82, 0, 1)
+    else
+        iconFrame:SetBackdropBorderColor(0.35, 0.35, 0.35, 1)
+    end
+end
+
+function ReadyCheck:LayoutFlaskIconCell(cell, iconFileID, goldBorder, label, lowTime)
+    self:EnsureIconCell(cell)
+
+    cell.iconFrame:ClearAllPoints()
+    cell.iconFrame:SetPoint("CENTER", cell, "CENTER", 0, 0)
+
+    if not iconFileID then
+        cell.iconFrame:Hide()
+        self:ApplyCellTextAnchor(cell, "CENTER")
+        cell.text:Show()
+        cell.text:SetText("—")
+        local nr, ng, nb = self:GetOkColor(false)
+        cell.text:SetTextColor(nr, ng, nb)
+        cell.tooltipTitle = nil
+        cell.tooltipBody = nil
+        return
+    end
+
+    cell.text:Hide()
+    cell.iconFrame:Show()
+    cell.iconFrame.icon:SetTexture(iconFileID)
+    cell.iconFrame.icon:SetDesaturated(false)
+    cell.iconFrame.icon:SetAlpha(1)
+    self:SetFlaskIconBorder(cell.iconFrame, goldBorder, lowTime)
+
+    cell.tooltipTitle = (label and label ~= "") and label or nil
+    cell.tooltipBody = nil
+end
+
+function ReadyCheck:LayoutConsumableIconCell(cell, ok, iconFileID, goldBorder, label, memberName, columnLabel, defaultIcon, premiumTooltip, eating)
     self:EnsureIconCell(cell)
 
     cell.tooltipTitle = string.format("%s — %s", memberName, columnLabel)
     cell.iconFrame:ClearAllPoints()
     cell.iconFrame:SetPoint("CENTER", cell, "CENTER", 0, 0)
 
-    if not ok then
+    if not ok and not eating then
         cell.iconFrame:Hide()
         self:ApplyCellTextAnchor(cell, "CENTER")
         cell.text:Show()
@@ -615,18 +658,22 @@ function ReadyCheck:LayoutConsumableIconCell(cell, ok, iconFileID, goldBorder, l
     cell.text:Hide()
     cell.iconFrame:Show()
     cell.iconFrame.icon:SetTexture(icon or self:GetDefaultIcon())
-    cell.iconFrame.icon:SetDesaturated(false)
-    cell.iconFrame.icon:SetAlpha(1)
-    self:SetIconCellBorder(cell.iconFrame, goldBorder)
+    cell.iconFrame.icon:SetDesaturated(eating == true)
+    cell.iconFrame.icon:SetAlpha(eating and 0.85 or 1)
+    self:SetIconCellBorder(cell.iconFrame, goldBorder, eating)
 
     if label and label ~= "" then
         cell.tooltipBody = label
-        if goldBorder and premiumTooltip then
+        if eating and premiumTooltip then
+            cell.tooltipBody = label .. " (" .. premiumTooltip .. ")"
+        elseif goldBorder and premiumTooltip then
             cell.tooltipBody = label .. " (" .. premiumTooltip .. ")"
         end
     else
         cell.tooltipBody = columnLabel .. " active"
-        if goldBorder and premiumTooltip then
+        if eating and premiumTooltip then
+            cell.tooltipBody = columnLabel .. " — " .. premiumTooltip
+        elseif goldBorder and premiumTooltip then
             cell.tooltipBody = columnLabel .. " active (" .. premiumTooltip .. ")"
         end
     end
@@ -712,16 +759,34 @@ function ReadyCheck:RenderConsumableColumn(cell, member, status, column)
         return
     end
 
+    if kindKey == "flask" then
+        local tierMeta = KeyAuras and KeyAuras:GetQualityTierMeta(status[fields.qualityTier])
+        self:LayoutFlaskIconCell(
+            cell,
+            status[fields.icon],
+            tierMeta and tierMeta.premiumBorder,
+            status[fields.label],
+            status[fields.lowTime]
+        )
+        return
+    end
+
     local goldBorder = false
     local premiumTooltip
 
+    local eating = false
+
     if kindKey == "food" then
         goldBorder = status[fields.hearty]
+        eating = status[fields.eating] == true
         premiumTooltip = consumableConfig and consumableConfig.premiumTooltip
-    elseif kindKey == "flask" then
+        if eating then
+            premiumTooltip = consumableConfig and consumableConfig.eatingTooltip
+        end
+    elseif kindKey == "oil" and fields.qualityTier then
         local tierMeta = KeyAuras and KeyAuras:GetQualityTierMeta(status[fields.qualityTier])
         goldBorder = tierMeta and tierMeta.premiumBorder
-        premiumTooltip = tierMeta and tierMeta.label
+        premiumTooltip = consumableConfig and consumableConfig.premiumTooltip
     end
 
     self:LayoutConsumableIconCell(
@@ -733,7 +798,8 @@ function ReadyCheck:RenderConsumableColumn(cell, member, status, column)
         member.name,
         columnLabel,
         KeyAuras and KeyAuras:GetDefaultIconForKind(kindKey, status[fields.hearty]),
-        premiumTooltip
+        premiumTooltip,
+        eating
     )
 end
 

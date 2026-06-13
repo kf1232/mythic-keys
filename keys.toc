@@ -1,20 +1,29 @@
-## Interface: 120007, 120005, 120001, 120000
+## Interface: 120005
 ## Title: Key
 ## Notes: Party list and debug console. Type /keyf to open.
-## Author: KyleF
-## Version: 2026.0612.1
+## Author: MasFink
+## Version: 2026.0612.2
 ## OptionalDeps: DBM-Core, Details
 
 Log.lua
 ClickDebug.lua
-Auras.lua
+api-access\c-spell.lua
+api-access\c-unit-auras.lua
+api-access\get-weapon-enchant-info.lua
+api-access\get-inventory-item-durability.lua
+buffs-and-debuffs\bd-midnight-data.lua
+buffs-and-debuffs\bd.lua
+buffs-and-debuffs\bd-logging.lua
 Core.lua
 UI.lua
 Keystones.lua
-ExternalKeystones.lua
+integrations\lib-keystone.lua
+integrations\lib-openraid.lua
+integrations\external-keystones.lua
 PartySync.lua
 Teleports.lua
 ReadyCheck.lua
 PartyUI.lua
+buffs-and-debuffs\bd-updates.lua
 DebugData.lua
 DebugUI.lua
