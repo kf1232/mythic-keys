@@ -2,7 +2,7 @@
 ## Title: Key
 ## Notes: Party list and debug console. Type /keyf to open.
 ## Author: MasFink
-## Version: 2026.0612.2
+## Version: 2026.0613.1
 ## OptionalDeps: DBM-Core, Details
 
 Log.lua
