@@ -880,42 +880,52 @@ function Teleports:InitLogging()
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
     frame:RegisterEvent("SPELLS_CHANGED")
     frame:SetScript("OnEvent", function(_, event, ...)
-        if event == "PLAYER_REGEN_ENABLED" or event == "SPELLS_CHANGED" then
-            Teleports:RefreshActionButtons()
-            return
+        local args = { ... }
+
+        local function HandleEvent()
+            if event == "PLAYER_REGEN_ENABLED" or event == "SPELLS_CHANGED" then
+                Teleports:RefreshActionButtons()
+                return
+            end
+
+            if event == "UNIT_SPELLCAST_SENT" then
+                local unit, _, _, spellID = unpack(args)
+                if unit ~= "player" then
+                    return
+                end
+
+                if Teleports.spellToDungeon[spellID] then
+                    Teleports:LogTeleport(spellID, "cast")
+                end
+                return
+            end
+
+            if event == "UI_ERROR_MESSAGE" then
+                local arg1, arg2 = unpack(args)
+                local message = type(arg2) == "string" and arg2 or (type(arg1) == "string" and arg1 or nil)
+                if not message or message == "" then
+                    return
+                end
+
+                local spellID = Teleports.lastClickSpellID
+                local clickAge = GetTime() - (Teleports.lastClickTime or 0)
+                if not spellID or clickAge > 1 or not Teleports.spellToDungeon[spellID] then
+                    return
+                end
+
+                if message:find("not ready", 1, true)
+                    or message:find("cooldown", 1, true)
+                    or message:find("Can't do that yet", 1, true)
+                then
+                    Teleports:LogTeleport(spellID, "error", message)
+                end
+            end
         end
 
-        if event == "UNIT_SPELLCAST_SENT" then
-            local unit, _, _, spellID = ...
-            if unit ~= "player" then
-                return
-            end
-
-            if Teleports.spellToDungeon[spellID] then
-                Teleports:LogTeleport(spellID, "cast")
-            end
-            return
-        end
-
-        if event == "UI_ERROR_MESSAGE" then
-            local arg1, arg2 = ...
-            local message = type(arg2) == "string" and arg2 or (type(arg1) == "string" and arg1 or nil)
-            if not message or message == "" then
-                return
-            end
-
-            local spellID = Teleports.lastClickSpellID
-            local clickAge = GetTime() - (Teleports.lastClickTime or 0)
-            if not spellID or clickAge > 1 or not Teleports.spellToDungeon[spellID] then
-                return
-            end
-
-            if message:find("not ready", 1, true)
-                or message:find("cooldown", 1, true)
-                or message:find("Can't do that yet", 1, true)
-            then
-                Teleports:LogTeleport(spellID, "error", message)
-            end
+        if KeyLog and KeyLog.RunProtected then
+            KeyLog:RunProtected("Teleports:" .. tostring(event), HandleEvent)
+        else
+            HandleEvent()
         end
     end)
 

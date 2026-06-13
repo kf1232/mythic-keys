@@ -27,13 +27,21 @@ function Sync:Init()
     local frame = CreateFrame("Frame")
     frame:RegisterEvent("CHAT_MSG_ADDON")
     frame:SetScript("OnEvent", function(_, event, prefix, message, channel, sender)
-        if event == "CHAT_MSG_ADDON" then
-            Key.Dispatch("CHAT_MSG_ADDON", {
-                prefix = prefix,
-                message = message,
-                channel = channel,
-                sender = sender,
-            })
+        local function HandleEvent()
+            if event == "CHAT_MSG_ADDON" then
+                Key.Dispatch("CHAT_MSG_ADDON", {
+                    prefix = prefix,
+                    message = message,
+                    channel = channel,
+                    sender = sender,
+                })
+            end
+        end
+
+        if KeyLog and KeyLog.RunProtected then
+            KeyLog:RunProtected("PartySync:" .. tostring(event), HandleEvent)
+        else
+            HandleEvent()
         end
     end)
 

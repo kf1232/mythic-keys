@@ -94,6 +94,9 @@ function PartyUI:SetActiveTab(tabId)
     self.activeTab = tabId
     self:UpdateTabVisuals()
     Key.Dispatch("REFRESH_UI", { immediate = true })
+    if KeyBDUpdates and KeyBDUpdates.UpdatePolling then
+        KeyBDUpdates:UpdatePolling()
+    end
 end
 
 function PartyUI:LayoutTabs()
@@ -207,7 +210,13 @@ function PartyUI:OnRefreshClick()
     self.refreshLockUntil = GetTime() + self.REFRESH_COOLDOWN
     self:UpdateRefreshButton()
 
-    Key.Dispatch("UI_REFRESH_CLICK")
+    if KeyLog and KeyLog.RunProtected then
+        KeyLog:RunProtected("PartyUI:OnRefreshClick", function()
+            Key.Dispatch("UI_REFRESH_CLICK")
+        end)
+    else
+        Key.Dispatch("UI_REFRESH_CLICK")
+    end
 
     if self.refreshUnlockTimer then
         self.refreshUnlockTimer:Cancel()
@@ -426,13 +435,57 @@ function PartyUI:RefreshCompletionsPane(contentWidth, members)
 end
 
 function PartyUI:RefreshReadyPane(contentWidth, members)
-    if KeyReadyCheck then
-        KeyReadyCheck:RebindReadyCache()
+    if not KeyReadyCheck then
+        return self.PANE_BOTTOM_PADDING
+    end
+
+    KeyReadyCheck:RebindReadyCache()
+
+    local pane = self.frame.readyPane
+    if not pane or not pane.readyTable then
+        return self.PANE_BOTTOM_PADDING
+    end
+
+    local tableHeight = KeyReadyCheck:LayoutTable(pane.readyTable, contentWidth, members)
+    return tableHeight + self.PANE_BOTTOM_PADDING
+end
+
+local function TraceReadyRefresh(message)
+    if KeyAurasLog and KeyAurasLog.LogUpdate then
+        KeyAurasLog:LogUpdate(message)
+    end
+end
+
+function PartyUI:RefreshReadyOnly()
+    self:EnsureFrame()
+
+    if not self.frame or not self.frame:IsShown() then
+        TraceReadyRefresh("RefreshReadyOnly skipped: party panel hidden")
+        return
+    end
+
+    if not self:IsReadyTabActive() then
+        TraceReadyRefresh("RefreshReadyOnly skipped: completions tab active")
+        return
     end
 
     local pane = self.frame.readyPane
-    local tableHeight = KeyReadyCheck:LayoutTable(pane.readyTable, contentWidth, members)
-    return tableHeight + self.PANE_BOTTOM_PADDING
+    if not pane or not pane.readyTable then
+        TraceReadyRefresh("RefreshReadyOnly skipped: ready table missing")
+        return
+    end
+
+    if not KeyReadyCheck then
+        TraceReadyRefresh("RefreshReadyOnly skipped: KeyReadyCheck missing")
+        return
+    end
+
+    KeyReadyCheck:RebindReadyCache()
+    KeyReadyCheck:LayoutTable(pane.readyTable, self:GetContentWidth(), self:CollectMembers())
+    TraceReadyRefresh(string.format(
+        "RefreshReadyOnly laid out ready table (tab=%s)",
+        tostring(self.activeTab)
+    ))
 end
 
 function PartyUI:Refresh()
@@ -473,6 +526,10 @@ function PartyUI:Refresh()
     self._lastMinHeight = contentHeight
 
     self._layingOut = false
+
+    if KeyBDUpdates and KeyBDUpdates.UpdatePolling then
+        KeyBDUpdates:UpdatePolling()
+    end
 end
 
 function PartyUI:TogglePanel()
@@ -485,6 +542,10 @@ function PartyUI:TogglePanel()
         if KeyClickDebug and KeyClickDebug:IsEnabled() then
             KeyClickDebug:RewireAll()
         end
+    end
+
+    if KeyBDUpdates and KeyBDUpdates.UpdatePolling then
+        KeyBDUpdates:UpdatePolling()
     end
 end
 
