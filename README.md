@@ -13,11 +13,12 @@ A movable, resizable window with two tabs:
 **Completions**
 - **Teleport bar** — one icon per current-season dungeon. Click a learned teleport to cast it (secure action buttons, same approach as Details/DBM keystone UIs).
 - **Key tokens** — small class-colored markers on each dungeon icon show who is holding a key for that dungeon (leader key gets a gold outline).
-- **Season bests table** — per-player best completed key level for each dungeon in the pool, with overtime highlighting.
+- **Season bests table** — per-player best **in-time** completed key level for each dungeon in the pool (overtime runs are excluded).
 
 **Ready**
-- Repair durability, food, flask, weapon oil, party buffs, and a ready toggle per member.
-- Ready state syncs with other Key users in your group.
+- Columns per member: repair %, food, flask/phial, weapon oil, self-sourced party buffs, and zone rally status.
+- **Footer** — **Ready Check** (`/readycheck`), **Countdown** (`/countdown 10`), **Set Zone** (broadcasts your current zone as the group rally target), plus rally-zone status text.
+- Consumables and zones sync with other Key users in your group.
 
 ### Party sync
 
@@ -26,7 +27,8 @@ Anyone with Key enabled shares data automatically — **opening the panel is not
 On join, login, and roster changes, Key pushes:
 - Current keystone (`K:level:mapID`)
 - Season bests (`M:…`)
-- Ready details and ready flag (`P:…`, `Y:…`)
+- Ready consumables (`P:…`)
+- Member zone and rally target (`Z:zoneName`, `T:zoneName`)
 
 Other Key users can request a refresh with the `R` addon message. Data is mirrored to a **session cache** so party info survives instance transitions and brief loading-screen glitches; it clears when you leave the group.
 
@@ -38,28 +40,32 @@ If loaded, Key also consumes party keystone data from:
 
 No duplicate logging spam — updates are deduped and formatted consistently.
 
-### Debug console (`/keyf debug`)
+### Debug console (dev manifest only)
+
+The public release TOC (`keys.toc`) does not load the debug modules. With the local dev manifest (`mythic-keys.toc`), `/keyf debug` opens a console with:
 
 - Live event log (keystones, teleports, auras, clicks)
 - **Clear** — wipe the log
 - **Dump** — snapshot cached addon state into the log
 - **Click debug** — trace which UI layers receive mouse events (safe for teleport buttons; secure action buttons are never hooked)
 
+In a release build, debug slash commands print that the debug UI is not loaded.
+
 ## Slash commands
 
 | Command | Description |
 |---------|-------------|
 | `/keyf` | Toggle the party list |
-| `/keyf debug` | Open the debug console |
-| `/keyf clear` | Clear the debug log |
-| `/keyf dump` | Dump cached addon data to the log |
-| `/keyf clickdebug` | Toggle click-hit tracing (`/keyf click` also works) |
+| `/keyf debug` | Open the debug console (dev manifest only) |
+| `/keyf clear` | Clear the debug log (dev manifest only) |
+| `/keyf dump` | Dump cached addon data to the log (dev manifest only) |
+| `/keyf clickdebug` | Toggle click-hit tracing (`/keyf click` also works; dev manifest only) |
 
 ## Installation
 
 1. Clone or copy this folder into:
    ```
-   World of Warcraft\_retail_\Interface\AddOns\Key
+   World of Warcraft\_retail_\Interface\AddOns\mythic-keys
    ```
 2. Enable **Key** on the character select AddOns screen.
 3. `/reload` or log in.
@@ -76,6 +82,8 @@ The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons).
 |------|------|
 | `Core.lua` | Event bus, slash commands, WoW event wiring |
 | `Log.lua` | Central log store and `WriteEvent` API |
+| `cache/cache.lua` | Shared session cache and sender/GUID indexing |
+| `party/party.lua` | Group roster enumeration and sender identity |
 | `ui/ui.lua` | Shared frame/theme helpers |
 | `keystones/keystones.lua` | Keystone and season-best caches |
 | `party-sync/party-sync.lua` | `KeyF` addon message protocol |
@@ -95,6 +103,8 @@ The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons).
 - **`keys.toc`** — public release manifest (tracked in git). Omits debug console and `*-logging.lua` modules.
 - **`mythic-keys.toc`** — local dev manifest (gitignored). Loads everything, including `debug/` and module logging.
 
+When adding or reordering shared modules, update **both** manifests so load order stays identical for the release slice.
+
 For local development, copy or symlink `mythic-keys.toc` as your active TOC (WoW loads the folder name or whichever `.toc` matches the addon directory).
 
 ### Teleport buttons
@@ -112,12 +122,13 @@ Addon message prefix: `KeyF`
 | `K:level:mapID` | Keystone |
 | `M:…` | Season bests payload |
 | `P:…` | Ready consumables |
-| `Y:0` / `Y:1` | Not ready / ready |
+| `Z:zoneName` | Member’s current zone |
+| `T:zoneName` | Group rally target zone |
 | `R` | Request full party refresh |
 
 ## Author
 
-KyleF — version 2026.0613.1
+KyleF — version 2026.0616.1
 
 ## Use policy
 

@@ -18,6 +18,8 @@ Teleports.LEADER_OUTLINE_SIZE = 3
 Teleports.LAYOUT_GAP = 4
 -- Secure action button must sit above decorative slot children (labelBar +3, leaderOutline +4).
 Teleports.ACTION_FRAME_LEVEL_OFFSET = 50
+Teleports.COOLDOWN_FRAME_LEVEL_OFFSET = 1
+Teleports.COOLDOWN_TICK_INTERVAL = 0.25
 
 Teleports.CLASS_ICON_TEXTURE = "Interface\\GLUES\\CHARACTERCREATE\\UI-CharacterCreate-Classes"
 
@@ -32,10 +34,6 @@ end
 
 function Teleports:GetMinContentWidth()
     return (self.COLUMNS * self.SLOT_MIN) + ((self.COLUMNS - 1) * self.LAYOUT_GAP)
-end
-
-function Teleports:GetMinTeleportBarHeight()
-    return self.SLOT_MIN
 end
 
 function Teleports:GetMinFrameWidth(padding)
@@ -69,8 +67,8 @@ end
 
 function Teleports:GetDungeonTexture(challengeModeID)
     if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
-        local _, _, _, texture = C_ChallengeMode.GetMapUIInfo(challengeModeID)
-        if texture then
+        local ok, _, _, _, texture = pcall(C_ChallengeMode.GetMapUIInfo, challengeModeID)
+        if ok and texture and (not issecretvalue or not issecretvalue(texture)) then
             return texture
         end
     end
@@ -110,22 +108,31 @@ function Teleports:IsSpellKnown(spellID)
     return C_SpellBook and C_SpellBook.IsSpellKnown and C_SpellBook.IsSpellKnown(spellID)
 end
 
-function Teleports:GetSpellCooldownRemaining(spellID)
+function Teleports:GetSpellCooldownInfo(spellID)
     if not spellID or not C_Spell or not C_Spell.GetSpellCooldown then
-        return 0
+        return nil
     end
 
     local cooldown = C_Spell.GetSpellCooldown(spellID)
     if not cooldown or cooldown.duration == 0 then
-        return 0
+        return nil
     end
 
     local gcd = C_Spell.GetSpellCooldown(self:GetGcdSpellId())
     if gcd and cooldown.duration == gcd.duration then
+        return nil
+    end
+
+    return cooldown.startTime, cooldown.duration
+end
+
+function Teleports:GetSpellCooldownRemaining(spellID)
+    local startTime, duration = self:GetSpellCooldownInfo(spellID)
+    if not startTime then
         return 0
     end
 
-    return math.max(0, cooldown.startTime + cooldown.duration - GetTime())
+    return math.max(0, startTime + duration - GetTime())
 end
 
 function Teleports:HandleTeleportClick(spellID)
@@ -156,6 +163,8 @@ function Teleports:HandleTeleportClick(spellID)
     if remaining > 0 and Key.TeleportBarLog and Key.TeleportBarLog.LogTeleport then
         Key.TeleportBarLog:LogTeleport(spellID, "cooldown", remaining)
     end
+
+    self:RefreshCooldownUI()
 end
 
 function Teleports:UpdateSlotTooltip(slot)
@@ -179,28 +188,20 @@ function Teleports:UpdateSlotTooltip(slot)
 end
 
 function Teleports:ConfigureSlotMouseLayers(slot)
-    if not slot then
+    if not slot or InCombatLockdown() then
         return
     end
 
     slot:EnableMouse(false)
 
-    if slot.labelBar then
-        slot.labelBar:EnableMouse(false)
-        slot.labelBar:SetPropagateMouseClicks(true)
-        slot.labelBar:SetPropagateMouseMotion(true)
-    end
-
-    if slot.tokenContainer then
-        slot.tokenContainer:EnableMouse(false)
-        slot.tokenContainer:SetPropagateMouseClicks(true)
-        slot.tokenContainer:SetPropagateMouseMotion(true)
-    end
-
-    if slot.leaderOutline then
-        slot.leaderOutline:EnableMouse(false)
-        slot.leaderOutline:SetPropagateMouseClicks(true)
-        slot.leaderOutline:SetPropagateMouseMotion(true)
+    for _, child in ipairs({ slot.cooldown, slot.labelBar, slot.tokenContainer, slot.leaderOutline }) do
+        if child then
+            child:EnableMouse(false)
+            if child.SetPropagateMouseClicks then
+                child:SetPropagateMouseClicks(true)
+                child:SetPropagateMouseMotion(true)
+            end
+        end
     end
 
     if slot.action then
@@ -225,6 +226,20 @@ function Teleports:CreateSlot(parent, index, dungeon)
     icon:SetPoint("TOPLEFT", 4, -4)
     icon:SetPoint("BOTTOMRIGHT", -4, 4)
     slot.icon = icon
+
+    local cooldown = CreateFrame("Cooldown", nil, slot, "CooldownFrameTemplate")
+    cooldown:SetAllPoints(icon)
+    cooldown:SetFrameLevel(slot:GetFrameLevel() + self.COOLDOWN_FRAME_LEVEL_OFFSET)
+    cooldown:SetDrawEdge(true)
+    cooldown:SetDrawSwipe(true)
+    cooldown:SetSwipeColor(0, 0, 0, 0.8)
+    cooldown:SetHideCountdownNumbers(false)
+    cooldown:EnableMouse(false)
+    cooldown:SetScript("OnCooldownDone", function()
+        Teleports:UpdateSlotCooldown(slot, slot:GetWidth())
+        Teleports:RefreshCooldownUI()
+    end)
+    slot.cooldown = cooldown
 
     local labelBar = CreateFrame("Frame", nil, slot, "BackdropTemplate")
     labelBar:SetPoint("BOTTOMLEFT", icon, "BOTTOMLEFT", 0, 0)
@@ -418,7 +433,8 @@ function Teleports:UpdateTokenAppearance(tokenFrame, token, cubeSize, compact)
     tokenFrame.text:SetFont("Fonts\\FRIZQT__.TTF", fontSize, "OUTLINE")
     tokenFrame.text:ClearAllPoints()
     tokenFrame.text:SetPoint("TOP", tokenFrame.icon, "BOTTOM", 0, -1)
-    tokenFrame.text:SetText(tostring(token.level))
+    local level = Key.Keystones and Key.Keystones:AsAccessibleNumber(token.level) or nil
+    tokenFrame.text:SetText(level and tostring(level) or "?")
     tokenFrame.text:Show()
 
     return tokenSize
@@ -517,8 +533,6 @@ function Teleports:UpdateSlotBorder(slot, dungeon)
     slot.action:SetAttribute("spell", dungeon.spellID)
 
     if self:IsSpellKnown(dungeon.spellID) then
-        local theme = Key.UI:GetTheme()
-        slot:SetBackdropBorderColor(unpack(theme.slotActiveBorder))
         slot.action:Enable()
         slot.action:EnableMouse(true)
     else
@@ -527,7 +541,123 @@ function Teleports:UpdateSlotBorder(slot, dungeon)
         slot.icon:SetAlpha(0.45)
         slot.action:Disable()
         slot.action:EnableMouse(false)
+        if slot.cooldown then
+            slot.cooldown:Clear()
+        end
     end
+end
+
+function Teleports:EnsureSlotCooldown(slot)
+    if not slot then
+        return
+    end
+
+    if slot.cooldownTop then
+        slot.cooldownTop:Hide()
+        slot.cooldownTop = nil
+    end
+
+    if slot.cooldownBottom then
+        slot.cooldownBottom:Hide()
+        slot.cooldownBottom = nil
+    end
+
+    if slot.cooldown then
+        return
+    end
+
+    local cooldown = CreateFrame("Cooldown", nil, slot, "CooldownFrameTemplate")
+    cooldown:SetAllPoints(slot.icon)
+    cooldown:SetFrameLevel(slot:GetFrameLevel() + self.COOLDOWN_FRAME_LEVEL_OFFSET)
+    cooldown:SetDrawEdge(true)
+    cooldown:SetDrawSwipe(true)
+    cooldown:SetSwipeColor(0, 0, 0, 0.8)
+    cooldown:SetHideCountdownNumbers(false)
+    cooldown:EnableMouse(false)
+    cooldown:SetScript("OnCooldownDone", function()
+        Teleports:UpdateSlotCooldown(slot, slot:GetWidth())
+        Teleports:RefreshCooldownUI()
+    end)
+    slot.cooldown = cooldown
+end
+
+function Teleports:UpdateSlotCooldown(slot, slotSize)
+    if not slot or not slot.spellID then
+        return false
+    end
+
+    self:EnsureSlotCooldown(slot)
+
+    if not self:IsSpellKnown(slot.spellID) then
+        if slot.cooldown then
+            slot.cooldown:Clear()
+        end
+        return false
+    end
+
+    local theme = Key.UI:GetTheme()
+    local startTime, duration = self:GetSpellCooldownInfo(slot.spellID)
+    local onCooldown = startTime ~= nil
+
+    if slotSize then
+        slot.cooldown:SetHideCountdownNumbers(self:IsCompactSlot(slotSize))
+    end
+
+    if onCooldown then
+        slot:SetBackdropBorderColor(unpack(theme.slotBorder))
+        slot.icon:SetDesaturated(true)
+        slot.icon:SetAlpha(0.65)
+
+        if slot.cooldownStart ~= startTime or slot.cooldownDuration ~= duration then
+            slot.cooldown:SetCooldown(startTime, duration)
+            slot.cooldownStart = startTime
+            slot.cooldownDuration = duration
+        end
+    else
+        slot:SetBackdropBorderColor(unpack(theme.slotActiveBorder))
+        slot.icon:SetDesaturated(false)
+        slot.icon:SetAlpha(1)
+        slot.cooldown:Clear()
+        slot.cooldownStart = nil
+        slot.cooldownDuration = nil
+    end
+
+    return onCooldown
+end
+
+function Teleports:SetCooldownTicker(active)
+    if active then
+        if self.cooldownTicker then
+            return
+        end
+
+        self.cooldownTicker = C_Timer.NewTicker(self.COOLDOWN_TICK_INTERVAL, function()
+            Teleports:RefreshCooldownUI()
+        end)
+        return
+    end
+
+    if self.cooldownTicker then
+        self.cooldownTicker:Cancel()
+        self.cooldownTicker = nil
+    end
+end
+
+function Teleports:RefreshCooldownUI()
+    if not self.bar then
+        self:SetCooldownTicker(false)
+        return
+    end
+
+    local anyOnCooldown = false
+    for i, dungeon in ipairs(self.SEASON_DUNGEONS) do
+        local slot = self.bar.slots[i]
+        if slot and self:UpdateSlotCooldown(slot, slot:GetWidth()) then
+            anyOnCooldown = true
+        end
+    end
+
+    self:SetCooldownTicker(anyOnCooldown)
 end
 
 function Teleports:ApplySlotLabel(slot, dungeon, slotSize)
@@ -564,6 +694,7 @@ end
 
 function Teleports:UpdateSlot(slot, dungeon, tokens, slotWidth, slotHeight)
     self:UpdateSlotBorder(slot, dungeon)
+    self:UpdateSlotCooldown(slot, slotWidth)
     self:ApplySlotLabel(slot, dungeon, slotWidth)
     self:UpdateSlotTokens(slot, tokens, slotWidth, slotHeight)
     self:ConfigureSlotMouseLayers(slot)
@@ -595,11 +726,30 @@ function Teleports:EnsureBar(parent)
     end
     if parent then
         bar:Show()
+        if bar:GetHeight() <= 1 then
+            self:LayoutBar(bar, self:GetDefaultContentWidth())
+        end
     end
     return bar
 end
 
 function Teleports:LayoutBar(bar, contentWidth)
+    local function run()
+        return self:LayoutBarInternal(bar, contentWidth)
+    end
+
+    if Key.Log and Key.Log.RunProtected then
+        local ok, height = Key.Log:RunProtected("Teleports:LayoutBar", run)
+        if ok and height then
+            return height
+        end
+        return self.SLOT_MIN + self.LAYOUT_GAP
+    end
+
+    return run()
+end
+
+function Teleports:LayoutBarInternal(bar, contentWidth)
     local columns, rows, slotSize = self:ComputeLayout(contentWidth)
     local gap = self.LAYOUT_GAP
     local pitch = slotSize + gap
@@ -631,6 +781,8 @@ function Teleports:LayoutBar(bar, contentWidth)
         Key.TeleportBarLog:LogBarLayout(contentWidth, barHeight, slotSize)
     end
 
+    self:RefreshCooldownUI()
+
     return barHeight, slotSize, pitch
 end
 
@@ -643,8 +795,11 @@ function Teleports:RefreshActionButtons()
         local slot = self.bar.slots[i]
         if slot then
             self:UpdateSlotBorder(slot, dungeon)
+            self:ConfigureSlotMouseLayers(slot)
         end
     end
+
+    self:RefreshCooldownUI()
 end
 
 function Teleports:BuildSpellIndex()
@@ -667,6 +822,7 @@ function Teleports:InitEvents()
 
     local frame = CreateFrame("Frame")
     frame:RegisterEvent("UNIT_SPELLCAST_SENT")
+    frame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
     frame:RegisterEvent("UI_ERROR_MESSAGE")
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
     frame:RegisterEvent("SPELLS_CHANGED")
@@ -685,6 +841,11 @@ function Teleports:InitEvents()
                 return
             end
 
+            if event == "SPELL_UPDATE_COOLDOWN" then
+                Teleports:RefreshCooldownUI()
+                return
+            end
+
             if event == "UNIT_SPELLCAST_SENT" then
                 local unit, _, _, spellID = unpack(args)
                 if unit ~= "player" or not Teleports:IsSeasonTeleport(spellID) then
@@ -694,6 +855,8 @@ function Teleports:InitEvents()
                 if Key.TeleportBarLog and Key.TeleportBarLog.LogTeleport then
                     Key.TeleportBarLog:LogTeleport(spellID, "cast")
                 end
+
+                Teleports:RefreshCooldownUI()
                 return
             end
 

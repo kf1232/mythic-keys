@@ -9,7 +9,7 @@ local LAYOUT = UI.LAYOUT
 local PADDING = LAYOUT.paddingSmall
 local LOG_INSET_RIGHT = 28
 local CONTENT_WIDTH = 464
-local TITLE_TOP = 36
+local TITLE_TOP = UI:GetHeaderHeight()
 local BOTTOM_CHROME = 30
 
 DebugUI.DESIGN = {
@@ -36,8 +36,7 @@ DebugUI.DESIGN = {
     }),
 
     closeButton = {
-        template = "UIPanelCloseButton",
-        anchors = LAYOUT.closeButtonAnchors,
+        anchors = UI:GetCloseButtonAnchors(),
     },
 
     scrollFrame = {
@@ -56,7 +55,6 @@ DebugUI.DESIGN = {
     }),
 
     actionButton = {
-        size = { 52, 20 },
         gap = 4,
         anchors = {
             { "BOTTOMRIGHT", -PADDING, PADDING },
@@ -190,40 +188,35 @@ local function CreateLogEditBox(scrollFrame, design)
     return editBox
 end
 
-function DebugUI:CreateActionButton(parent, label, onClick)
-    local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    button:SetSize(self.DESIGN.actionButton.size[1], self.DESIGN.actionButton.size[2])
-    button:SetText(label)
-    button:SetScript("OnClick", onClick)
-    return button
-end
-
 function DebugUI:EnsureActionButtons(frame)
     local gap = self.DESIGN.actionButton.gap
     local close = frame.closeButton or UI:CreateCloseButton(frame)
     frame.closeButton = close
 
     if not frame.dumpButton then
-        frame.dumpButton = self:CreateActionButton(frame, "Dump", function()
+        frame.dumpButton = UI:CreateActionButton(frame, "Dump", function()
             DebugUI:DumpData()
         end)
         frame.dumpButton:SetPoint("RIGHT", close, "LEFT", -gap, 0)
     end
 
     if not frame.clearButton then
-        frame.clearButton = self:CreateActionButton(frame, "Clear", function()
+        frame.clearButton = UI:CreateActionButton(frame, "Clear", function()
             DebugUI:ClearLog()
         end)
         frame.clearButton:SetPoint("RIGHT", frame.dumpButton, "LEFT", -gap, 0)
     end
 
     if not frame.selectButton then
-        frame.selectButton = self:CreateActionButton(frame, "Select All", function()
+        frame.selectButton = UI:CreateActionButton(frame, "Select All", function()
             DebugUI:SelectAllLog()
         end)
-        frame.selectButton:SetSize(72, self.DESIGN.actionButton.size[2])
         frame.selectButton:SetPoint("RIGHT", frame.clearButton, "LEFT", -gap, 0)
     end
+
+    UI:LayoutTitleBarChrome(frame, {
+        titleLabel = frame.titleBar and frame.titleBar.titleLabel,
+    })
 end
 
 function DebugUI:SelectAllLog()
@@ -269,7 +262,7 @@ function DebugUI:EnsureFrame()
     local frame = UI:CreateFrame(design.frame)
 
     local titleBar = UI:CreateFrame(design.titleBar, frame)
-    UI:CreateFontString(design.title, titleBar)
+    titleBar.titleLabel = UI:CreateFontString(design.title, titleBar)
 
     frame.closeButton = UI:CreateCloseButton(frame)
     self:EnsureActionButtons(frame)
@@ -324,8 +317,8 @@ function DebugUI:ShowConsole()
     Key.Log:WriteEvent(Key.Log.FEATURE.DEBUG, Key.Log.STATUS.INFO, "Debug console opened.", {
         source = "ShowConsole",
     })
-    if Key.BDUpdates and Key.BDUpdates.RegisterAuraChannels then
-        Key.BDUpdates:RegisterAuraChannels("debug-open")
+    if Key.BDUpdates and Key.BDUpdates.RefreshWatchedUnits then
+        Key.BDUpdates:RefreshWatchedUnits("debug-open")
     end
     if Key.BDUpdates and Key.BDUpdates.UpdatePolling then
         Key.BDUpdates:UpdatePolling()

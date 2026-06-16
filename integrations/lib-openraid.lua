@@ -64,7 +64,7 @@ function Provider:TryInit(host)
 end
 
 function Provider:ImportPartyCache(host)
-    if not host.openRaid or not Key.Keystones or not Key.Keystones.GetPartyUnits then
+    if not host.openRaid or not Key.Party or not Key.Party.GetPartyUnits then
         return
     end
 
@@ -72,7 +72,7 @@ function Provider:ImportPartyCache(host)
         return
     end
 
-    for _, unit in ipairs(Key.Keystones:GetPartyUnits()) do
+    for _, unit in ipairs(Key.Party:GetPartyUnits()) do
         if unit ~= "player" and UnitExists(unit) then
             local ok, keystoneInfo = pcall(host.openRaid.GetKeystoneInfo, unit)
             if ok and keystoneInfo then

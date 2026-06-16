@@ -2,30 +2,27 @@
 
 ## Summary
 
-The M+ Completions tab content below the teleport bar: a scrollable season-bests grid aligned to the current dungeon pool. One row per party member; columns match the eight season dungeons shown above.
+Season-bests table for the M+ Completions tab: one row per party member; columns match the eight season dungeons in the teleport bar. Pane shell (scroll, layout) lives in `party-ui/completions-pane.lua`.
 
 ## Namespace
 
-- `Key.Teleports` — bests table layout (extended in `party-complete.lua`)
-- `Key.PartyUI` — completions pane methods patched in `party-complete-pane.lua`
+- `Key.PartyComplete` — season dungeon pool (aliased from teleport data), bests table layout
+- `Key.Teleports` — teleport bar only (`EnsureBar`, `LayoutBar`, …)
 
 ## Files
 
 | File | Role |
 |------|------|
-| `party-complete.lua` | Bests table metrics, cell layout, `LayoutBestTable()` |
-| `party-complete-pane.lua` | Completions pane, scroll region, `RefreshCompletionsPane()` on `Key.PartyUI` |
+| `party-complete.lua` | `Key.PartyComplete`: bests table metrics, cell layout, `LayoutBestTable()` |
 | `party-complete-logging.lua` | Dev layout snapshots (dev TOC only) |
 
 ## Depends on (TOC order)
 
-- `teleport-bar/teleport-bar-data.lua`, `teleport-bar/teleport-bar.lua`, `party-complete.lua`
-- `party-complete-pane.lua` after `party-ui/party-ui.lua` (extends `Key.PartyUI`)
+- `teleport-bar/teleport-bar-data.lua`, `teleport-bar/teleport-bar.lua`
 
 ## Public API
 
-- **Teleports:** `EnsureBestTable(parent)`, `LayoutBestTable(table, contentWidth, members)`, `GetBestTableHeight(memberCount, contentWidth)`
-- **PartyUI (pane):** `EnsureCompletionsPane(frame)`, `RefreshCompletionsPane(contentWidth, members)`, `GetMemberBlockHeight(memberCount, contentWidth)`
+- **PartyComplete:** `EnsureBestTable(parent)`, `LayoutBestTable(table, contentWidth, members)`, `GetBestTableHeight(memberCount, contentWidth)`, `SEASON_DUNGEONS`
 
 ## Triggers
 
@@ -34,9 +31,8 @@ None.
 ## Output / Actions
 
 - **Member rows** — class-colored player name above their bests row
-- **Best level cells** — `+level` per dungeon, class-colored; em dash when no season best
-- **Overtime runs** — completed keys over time shown with desaturated text
-- **Cell tooltips** — hover shows player, dungeon, and best level (or “no completed run this season”)
+- **Best level cells** — in-time `+level` per dungeon, class-colored; em dash when no in-time season best
+- **Cell tooltips** — hover shows player, dungeon, and in-time best level (or “no completed run this season”)
 - **Column alignment** — bests columns line up under the matching teleport-bar dungeon icons
 - **Scrollable list** — vertical scroll when the group has more than six members; pane height grows with visible rows
 

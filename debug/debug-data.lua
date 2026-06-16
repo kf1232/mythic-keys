@@ -134,11 +134,12 @@ function DebugData:DumpToLog()
     end
 
     if Key.ReadyCheck then
-        WriteEvent(Key.Log.STATUS.DEBUG, string.format("Player ready toggle: %s", Key.ReadyCheck:GetPlayerReady() and "yes" or "no"), {
+        local targetZone = Key.ReadyCheck.GetTargetZone and Key.ReadyCheck:GetTargetZone() or nil
+        WriteEvent(Key.Log.STATUS.DEBUG, string.format("Target zone: %s", targetZone or "none"), {
             dedupe = false,
         })
 
-        self:DumpPrimaryCache("Ready payloads:", Key.ReadyCheck:GetPrimaryEntries(), function(entry)
+        self:DumpPrimaryCache("Ready payloads:", Key.Cache:GetPrimary(Key.ReadyCheck:GetReadyStore()), function(entry)
             return self:FormatReadySummary(entry)
         end)
     end

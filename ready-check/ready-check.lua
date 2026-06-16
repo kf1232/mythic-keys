@@ -4,9 +4,9 @@ Key.ReadyCheck = Key.ReadyCheck or {}
 local ReadyCheck = Key.ReadyCheck
 local Cache = Key.Cache
 
-ReadyCheck.playerReady = ReadyCheck.playerReady or false
-ReadyCheck.toggleLockUntil = ReadyCheck.toggleLockUntil or 0
-ReadyCheck.TOGGLE_LOCK_SECONDS = 1
+ReadyCheck.targetZone = ReadyCheck.targetZone or nil
+ReadyCheck.lastPushedZone = ReadyCheck.lastPushedZone or nil
+ReadyCheck.ZONE_UPDATE_INTERVAL = 10
 ReadyCheck.FLASK_LOW_TIME_SECONDS = 40 * 60
 
 ReadyCheck.READY_PAYLOAD_FIELDS = { "repair", "food", "flask", "oil", "isReady" }
@@ -28,10 +28,6 @@ function ReadyCheck:GetReadyStore()
     return Cache:GetStore(Cache.STORE.READY)
 end
 
-function ReadyCheck:GetPrimaryEntries()
-    return Cache:GetPrimary(self:GetReadyStore())
-end
-
 function ReadyCheck:GetDefaultIcon()
     return Key and Key.DEFAULT_ICON or 134400
 end
@@ -43,11 +39,211 @@ function ReadyCheck:GetReadyPayloadPattern()
     return "^P:(%d+):(%d+):(%d+):(%d+):?(%d*)$"
 end
 
-function ReadyCheck:GetReadyStatePayloadPattern()
-    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.READY_STATE then
-        return Key.PartySync.PROTOCOL.READY_STATE.pattern
+function ReadyCheck:GetZonePayloadPattern()
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.ZONE then
+        return Key.PartySync.PROTOCOL.ZONE.pattern
     end
-    return "^Y:(%d+)$"
+    return "^Z:(.+)$"
+end
+
+function ReadyCheck:GetZoneTargetPayloadPattern()
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.ZONE_TARGET then
+        return Key.PartySync.PROTOCOL.ZONE_TARGET.pattern
+    end
+    return "^T:(.+)$"
+end
+
+function ReadyCheck:GetPlayerZoneText()
+    return GetZoneText() or ""
+end
+
+function ReadyCheck:ZonesMatch(left, right)
+    if not left or not right or left == "" or right == "" then
+        return false
+    end
+    return left == right
+end
+
+function ReadyCheck:GetTargetZone()
+    return self.targetZone
+end
+
+function ReadyCheck:SetTargetZone(zone, broadcast)
+    if not zone or zone == "" then
+        return
+    end
+
+    self.targetZone = zone
+
+    if broadcast then
+        Key.Dispatch("UI_ZONE_TARGET_SET")
+    end
+
+    if Key.ReadyCheck.UI and Key.ReadyCheck.UI.UpdateZoneStatus then
+        Key.ReadyCheck.UI:UpdateZoneStatus()
+    end
+end
+
+function ReadyCheck:SetTargetZoneFromPlayer()
+    self:SetTargetZone(self:GetPlayerZoneText(), true)
+end
+
+function ReadyCheck:SetPartyTargetZone(sender, zone)
+    if not sender or sender == "" or not zone or zone == "" then
+        return
+    end
+
+    self:SetTargetZone(zone, false)
+end
+
+function ReadyCheck:SetPartyZone(sender, zone)
+    if not sender or sender == "" then
+        return
+    end
+
+    if not zone or zone == "" then
+        return
+    end
+
+    Cache:UpdateBySender(self:GetReadyStore(), sender, function(entry)
+        entry.zone = zone
+    end)
+end
+
+function ReadyCheck:GetMemberZoneText(unit)
+    if UnitIsUnit(unit, "player") then
+        return self:GetPlayerZoneText()
+    end
+
+    local cached = self:LookupCachedReady(unit)
+    return cached and cached.zone
+end
+
+function ReadyCheck:GetLocalZoneStatusDisplay()
+    local target = self:GetTargetZone()
+
+    if not target or target == "" then
+        return "Not set", 0.5, 0.5, 0.5
+    end
+
+    return target, 0.85, 0.85, 0.85
+end
+
+function ReadyCheck:GetMemberZoneCheckDisplay(unit)
+    local target = self:GetTargetZone()
+    local zone = self:GetMemberZoneText(unit)
+
+    if not target or target == "" then
+        if zone and zone ~= "" then
+            return zone, 0.5, 0.5, 0.5, "No target zone set"
+        end
+        return "—", 0.5, 0.5, 0.5, "Zone not shared"
+    end
+
+    if not zone or zone == "" then
+        return "—", 0.5, 0.5, 0.5, "Zone not shared"
+    end
+
+    if self:ZonesMatch(zone, target) then
+        return "Ready", 0.3, 0.9, 0.35, "In target zone"
+    end
+
+    return zone, 0.9, 0.35, 0.35, "Not in target zone"
+end
+
+function ReadyCheck:BuildZonePayload()
+    local prefix = "Z"
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.ZONE then
+        prefix = Key.PartySync.PROTOCOL.ZONE.prefix
+    end
+
+    return prefix .. ":" .. (self:GetPlayerZoneText() or "")
+end
+
+function ReadyCheck:BuildZoneTargetPayload()
+    local prefix = "T"
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.ZONE_TARGET then
+        prefix = Key.PartySync.PROTOCOL.ZONE_TARGET.prefix
+    end
+
+    local zone = self:GetTargetZone() or ""
+    return prefix .. ":" .. zone
+end
+
+function ReadyCheck:ParseZonePayload(message)
+    local zone = message and message:match(self:GetZonePayloadPattern())
+    if zone == nil then
+        return nil
+    end
+    return zone
+end
+
+function ReadyCheck:ParseZoneTargetPayload(message)
+    local zone = message and message:match(self:GetZoneTargetPayloadPattern())
+    if zone == nil then
+        return nil
+    end
+    return zone
+end
+
+function ReadyCheck:RefreshZoneDisplay()
+    if Key.ReadyCheck.UI and Key.ReadyCheck.UI.UpdateZoneStatus then
+        Key.ReadyCheck.UI:UpdateZoneStatus()
+    end
+
+    if Key.PartyUI and Key.PartyUI.IsReadyTabActive and Key.PartyUI:IsReadyTabActive()
+        and Key.PartyUI:IsShown() then
+        Key.Dispatch("REFRESH_UI", { ifShown = true, readyOnly = true })
+    end
+end
+
+function ReadyCheck:MaybePushZoneChange()
+    local zone = self:GetPlayerZoneText()
+    if zone == self.lastPushedZone then
+        return
+    end
+
+    self.lastPushedZone = zone
+    Key.Dispatch("UI_ZONE_CHANGED")
+end
+
+function ReadyCheck:OnZoneEvent()
+    self:RefreshZoneDisplay()
+
+    local now = GetTime()
+    if now < (self.zonePushNotBefore or 0) then
+        return
+    end
+
+    self.zonePushNotBefore = now + self.ZONE_UPDATE_INTERVAL
+    self:MaybePushZoneChange()
+end
+
+function ReadyCheck:OnZoneTick()
+    self.zonePushNotBefore = GetTime() + self.ZONE_UPDATE_INTERVAL
+    self:MaybePushZoneChange()
+    self:RefreshZoneDisplay()
+end
+
+function ReadyCheck:InitZoneTracking()
+    if self.zoneInitialized then
+        return
+    end
+
+    self.zoneInitialized = true
+    self.lastPushedZone = self:GetPlayerZoneText()
+
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent("ZONE_CHANGED")
+    frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+    frame:SetScript("OnEvent", function()
+        ReadyCheck:OnZoneEvent()
+    end)
+    self.zoneEventFrame = frame
+
+    self.zoneTicker = C_Timer.NewTicker(self.ZONE_UPDATE_INTERVAL, function()
+        ReadyCheck:OnZoneTick()
+    end)
 end
 
 function ReadyCheck:GetPlayerRepairPercent()
@@ -83,7 +279,7 @@ function ReadyCheck:GetPlayerSnapshot()
         food = food and 1 or 0,
         flask = flask and 1 or 0,
         oil = oil and 1 or 0,
-        isReady = self.playerReady and 1 or 0,
+        isReady = 0,
         foodLabel = foodLabel or (foodEating and foodEatingLabel),
         flaskLabel = flaskLabel,
         oilLabel = oilLabel,
@@ -116,7 +312,14 @@ function ReadyCheck:BuildReadyStatePayload()
     if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.READY_STATE then
         prefix = Key.PartySync.PROTOCOL.READY_STATE.prefix
     end
-    return string.format("%s:%d", prefix, self.playerReady and 1 or 0)
+    return string.format("%s:0", prefix)
+end
+
+function ReadyCheck:GetReadyStatePayloadPattern()
+    if Key.PartySync and Key.PartySync.PROTOCOL and Key.PartySync.PROTOCOL.READY_STATE then
+        return Key.PartySync.PROTOCOL.READY_STATE.pattern
+    end
+    return "^Y:(%d+)$"
 end
 
 function ReadyCheck:ParseReadyPayload(message)
@@ -148,27 +351,6 @@ function ReadyCheck:ParseReadyStatePayload(message)
     return tonumber(ready) == 1
 end
 
-function ReadyCheck:IsToggleLocked()
-    return GetTime() < (self.toggleLockUntil or 0)
-end
-
-function ReadyCheck:GetPlayerReady()
-    return self.playerReady and true or false
-end
-
-function ReadyCheck:GetMemberReadyState(unit)
-    if UnitIsUnit(unit, "player") then
-        return self:GetPlayerReady()
-    end
-
-    local cached = self:LookupCachedReady(unit)
-    if cached and cached.isReady ~= nil then
-        return cached.isReady and true or false
-    end
-
-    return nil
-end
-
 function ReadyCheck:SetPartyReadyState(sender, isReady)
     if not sender or sender == "" then
         return
@@ -176,32 +358,6 @@ function ReadyCheck:SetPartyReadyState(sender, isReady)
 
     Cache:UpdateBySender(self:GetReadyStore(), sender, function(entry)
         entry.isReady = isReady and true or false
-    end)
-end
-
-function ReadyCheck:TogglePlayerReady()
-    if self:IsToggleLocked() then
-        return
-    end
-
-    self.playerReady = not self.playerReady
-    self.toggleLockUntil = GetTime() + self.TOGGLE_LOCK_SECONDS
-
-    if Key.ReadyCheck.UI and Key.ReadyCheck.UI.UpdateToggleButton then
-        Key.ReadyCheck.UI:UpdateToggleButton()
-    end
-
-    Key.Dispatch("UI_READY_TOGGLE")
-
-    if self.toggleUnlockTimer then
-        self.toggleUnlockTimer:Cancel()
-    end
-
-    self.toggleUnlockTimer = C_Timer.NewTimer(self.TOGGLE_LOCK_SECONDS, function()
-        self.toggleUnlockTimer = nil
-        if Key.ReadyCheck.UI and Key.ReadyCheck.UI.UpdateToggleButton then
-            Key.ReadyCheck.UI:UpdateToggleButton()
-        end
     end)
 end
 
@@ -228,14 +384,10 @@ end
 
 function ReadyCheck:ClearCache()
     Cache:Wipe(self:GetReadyStore())
-    self.playerReady = false
-    self.toggleLockUntil = 0
-    if self.toggleUnlockTimer then
-        self.toggleUnlockTimer:Cancel()
-        self.toggleUnlockTimer = nil
-    end
-    if Key.ReadyCheck.UI and Key.ReadyCheck.UI.UpdateToggleButton then
-        Key.ReadyCheck.UI:UpdateToggleButton()
+    self.targetZone = nil
+    self.lastPushedZone = nil
+    if Key.ReadyCheck.UI and Key.ReadyCheck.UI.UpdateZoneStatus then
+        Key.ReadyCheck.UI:UpdateZoneStatus()
     end
 end
 
@@ -324,3 +476,5 @@ function ReadyCheck:GetMemberStatus(unit)
 
     return status
 end
+
+ReadyCheck:InitZoneTracking()

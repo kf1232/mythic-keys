@@ -5,7 +5,7 @@ Key.ReadyCheck.UI = Key.ReadyCheck.UI or {}
 local ReadyCheck = Key.ReadyCheck
 local UI = Key.ReadyCheck.UI
 
-UI.FOOTER_HEIGHT = 30
+UI.FOOTER_HEIGHT = Key.UI.LAYOUT.buttonHeight + 4
 UI.ROW_HEIGHT = 20
 UI.HEADER_HEIGHT = 18
 UI.MAX_ROWS = 40
@@ -22,7 +22,7 @@ UI.COLUMNS = {
     { key = "flask", label = "Flask", width = 0.14, type = "consumable_icon", consumableKind = "flask" },
     { key = "oil", label = "Oil", width = 0.14, type = "consumable_icon", consumableKind = "oil", columnLabel = "Weapon oil" },
     { key = "buffs", label = "Party Buffs", width = 0.29, type = "buffs" },
-    { key = "ready", label = "Ready", width = 0.08, type = "ready" },
+    { key = "zone", label = "Zone", width = 0.08, type = "zone" },
 }
 
 function UI:GetColumnConfig(key)
@@ -49,7 +49,7 @@ end
 
 function UI:IsCenterColumn(columnOrKey)
     local columnType = self:GetColumnType(columnOrKey)
-    return columnType == "consumable_icon" or columnType == "ready"
+    return columnType == "consumable_icon" or columnType == "zone"
 end
 
 function UI:ComputeColumnWidths(contentWidth)
@@ -82,13 +82,6 @@ function UI:ApplyCellTextAnchor(cell, justify)
     cell.text:SetJustifyH(justify)
 end
 
-function UI:GetOkColor(ok)
-    if ok then
-        return 0.3, 0.9, 0.35
-    end
-    return 0.9, 0.35, 0.35
-end
-
 function UI:GetRepairColor(percent)
     if not percent then
         return 0.5, 0.5, 0.5
@@ -103,65 +96,90 @@ function UI:GetRepairColor(percent)
     return 0.9, 0.35, 0.35
 end
 
-function UI:GetReadyText(isReady)
-    if isReady == nil then
-        return "—", 0.5, 0.5, 0.5
-    end
-    if isReady then
-        return "Ready", 0.3, 0.9, 0.35
-    end
-    return "Unready", 0.9, 0.35, 0.35
-end
-
-function UI:UpdateToggleButton()
+function UI:UpdateZoneStatus()
     local footer = self.tableFrame and self.tableFrame.footer
-    local button = footer and footer.toggle
-    if not button or not button.label then
+    local status = footer and footer.zoneStatus
+    if not status then
         return
     end
 
-    local locked = ReadyCheck:IsToggleLocked()
-    local ready = ReadyCheck:GetPlayerReady()
-
-    button:SetEnabled(not locked)
-
-    if ready then
-        button.label:SetText(locked and "You: Ready (locked)" or "You: Ready")
-    else
-        button.label:SetText(locked and "You: Unready (locked)" or "You: Unready")
-    end
-
-    Key.UI:ApplyReadyToggleStyle(button, ready, locked)
+    local text, r, g, b = ReadyCheck:GetLocalZoneStatusDisplay()
+    status:SetText(text)
+    status:SetTextColor(r, g, b)
 end
 
-function UI:CreateToggleButton(parent)
-    local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
-    button:SetBackdrop(Key.UI.BACKDROPS.tab)
-    Key.UI:ApplyReadyToggleStyle(button, false, false)
-    button:SetSize(140, 24)
-    button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    button.label:SetPoint("CENTER")
-    button:SetScript("OnClick", function()
-        ReadyCheck:TogglePlayerReady()
+function UI:EnsureFooterControls(footer)
+    if footer.readyCheck then
+        self:UpdateZoneStatus()
+        return
+    end
+
+    if footer.toggle then
+        footer.toggle:Hide()
+        footer.toggle:SetParent(nil)
+        footer.toggle = nil
+    end
+
+    footer.readyCheck = Key.UI:CreateActionButton(footer, "Ready Check", function()
+        Key.UI:RunSlashCommand("/readycheck")
     end)
-    button:SetScript("OnEnter", function()
-        GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-        if ReadyCheck:IsToggleLocked() then
-            GameTooltip:SetText("Ready toggle locked", 1, 1, 1)
-            GameTooltip:AddLine("Wait 1 second before changing again.", 0.85, 0.85, 0.85)
-        elseif ReadyCheck:GetPlayerReady() then
-            GameTooltip:SetText("You are ready", 1, 1, 1)
-            GameTooltip:AddLine("Click to mark unready.", 0.85, 0.85, 0.85)
+    footer.countdown = Key.UI:CreateActionButton(footer, "Countdown", function()
+        Key.UI:RunSlashCommand("/countdown 10")
+    end)
+    footer.setZone = Key.UI:CreateActionButton(footer, "Set Zone", function()
+        ReadyCheck:SetTargetZoneFromPlayer()
+    end)
+    footer.setZone:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(footer.setZone, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Set target zone", 1, 1, 1)
+        GameTooltip:AddLine("Uses your current zone as the rally point for the group.", 0.85, 0.85, 0.85, true)
+        GameTooltip:Show()
+    end)
+    footer.setZone:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    footer.zoneStatus = footer:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    footer.zoneStatus:SetJustifyH("RIGHT")
+    footer.zoneStatus:EnableMouse(true)
+    footer.zoneStatus:SetScript("OnEnter", function()
+        local target = ReadyCheck:GetTargetZone()
+        GameTooltip:SetOwner(footer.zoneStatus, "ANCHOR_RIGHT")
+        if target and target ~= "" then
+            GameTooltip:SetText("Rally zone", 1, 1, 1)
+            GameTooltip:AddLine(target, 0.85, 0.85, 0.85)
         else
-            GameTooltip:SetText("You are unready", 1, 1, 1)
-            GameTooltip:AddLine("Click to mark ready.", 0.85, 0.85, 0.85)
+            GameTooltip:SetText("No rally zone set", 1, 1, 1)
+            GameTooltip:AddLine("Click Set Zone to choose a meeting point.", 0.85, 0.85, 0.85, true)
         end
         GameTooltip:Show()
     end)
-    button:SetScript("OnLeave", function()
+    footer.zoneStatus:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
-    return button
+
+    self:UpdateZoneStatus()
+end
+
+function UI:LayoutFooterControls(footer)
+    if not footer or not footer.readyCheck then
+        return
+    end
+
+    footer.readyCheck:ClearAllPoints()
+    footer.readyCheck:SetPoint("LEFT", footer, "LEFT", 0, 0)
+
+    footer.countdown:ClearAllPoints()
+    footer.countdown:SetPoint("LEFT", footer.readyCheck, "RIGHT", 6, 0)
+
+    footer.setZone:ClearAllPoints()
+    footer.setZone:SetPoint("RIGHT", footer, "RIGHT", 0, 0)
+
+    footer.zoneStatus:ClearAllPoints()
+    footer.zoneStatus:SetPoint("RIGHT", footer.setZone, "LEFT", -8, 0)
+    footer.zoneStatus:SetPoint("LEFT", footer.countdown, "RIGHT", 8, 0)
+
+    self:UpdateZoneStatus()
 end
 
 function UI:CreateCell(parent, justify)
@@ -258,8 +276,7 @@ function UI:LayoutFlaskIconCell(cell, iconFileID, goldBorder, label, lowTime)
         self:ApplyCellTextAnchor(cell, "CENTER")
         cell.text:Show()
         cell.text:SetText("—")
-        local nr, ng, nb = self:GetOkColor(false)
-        cell.text:SetTextColor(nr, ng, nb)
+        cell.text:SetTextColor(0.9, 0.35, 0.35)
         cell.tooltipTitle = nil
         cell.tooltipBody = nil
         return
@@ -288,8 +305,7 @@ function UI:LayoutConsumableIconCell(cell, ok, iconFileID, goldBorder, label, me
         self:ApplyCellTextAnchor(cell, "CENTER")
         cell.text:Show()
         cell.text:SetText("—")
-        local nr, ng, nb = self:GetOkColor(false)
-        cell.text:SetTextColor(nr, ng, nb)
+        cell.text:SetTextColor(0.9, 0.35, 0.35)
         cell.tooltipBody = string.format("No %s", columnLabel:lower())
         return
     end
@@ -335,9 +351,8 @@ function UI:EnsureTable(parent)
     if self.tableFrame then
         if not self.tableFrame.footer then
             self.tableFrame.footer = CreateFrame("Frame", nil, self.tableFrame)
-            self.tableFrame.footer.toggle = self:CreateToggleButton(self.tableFrame.footer)
         end
-        self:UpdateToggleButton()
+        self:EnsureFooterControls(self.tableFrame.footer)
         return self.tableFrame
     end
 
@@ -371,10 +386,9 @@ function UI:EnsureTable(parent)
     end
 
     tableFrame.footer = CreateFrame("Frame", nil, tableFrame)
-    tableFrame.footer.toggle = self:CreateToggleButton(tableFrame.footer)
+    self:EnsureFooterControls(tableFrame.footer)
 
     self.tableFrame = tableFrame
-    self:UpdateToggleButton()
     return tableFrame
 end
 
@@ -452,22 +466,13 @@ function UI:RenderBuffsColumn(cell, member, status)
     )
 end
 
-function UI:RenderReadyColumn(cell, member)
-    local isReady = ReadyCheck:GetMemberReadyState(member.unit)
-    local readyText, rr, rg, rb = self:GetReadyText(isReady)
-    local tooltipBody
-    if isReady == nil then
-        tooltipBody = "Ready state not shared"
-    elseif isReady then
-        tooltipBody = "Marked ready"
-    else
-        tooltipBody = "Marked unready"
-    end
+function UI:RenderZoneColumn(cell, member)
+    local zoneText, rr, rg, rb, tooltipBody = ReadyCheck:GetMemberZoneCheckDisplay(member.unit)
     self:LayoutTextCell(
         cell,
-        readyText,
+        zoneText,
         rr, rg, rb,
-        string.format("%s — Ready state", member.name),
+        string.format("%s — Zone check", member.name),
         tooltipBody,
         "CENTER"
     )
@@ -477,7 +482,7 @@ UI.COLUMN_RENDERERS = {
     repair = UI.RenderRepairColumn,
     consumable_icon = UI.RenderConsumableColumn,
     buffs = UI.RenderBuffsColumn,
-    ready = UI.RenderReadyColumn,
+    zone = UI.RenderZoneColumn,
 }
 
 function UI:RenderColumnCell(cell, member, status, column)
@@ -538,13 +543,14 @@ function UI:LayoutTable(tableFrame, contentWidth, members)
         row.name:SetSize(nameWidth, self.ROW_HEIGHT)
         row.name:ClearAllPoints()
         row.name:SetPoint("TOPLEFT", 0, y)
-        row.name.text:SetText(member.name)
+        local memberName = Key.UI:DisplayText(member.name, "Member")
+        row.name.text:SetText(memberName)
         local nr, ng, nb = 1, 1, 1
         if Key.Keystones and member.classFilename then
             nr, ng, nb = Key.Keystones:GetClassColor(member.classFilename)
         end
         row.name.text:SetTextColor(nr, ng, nb)
-        row.name.tooltipTitle = member.name
+        row.name.tooltipTitle = memberName
         row.name:Show()
 
         x = nameWidth
@@ -568,9 +574,7 @@ function UI:LayoutTable(tableFrame, contentWidth, members)
     tableFrame.footer:ClearAllPoints()
     tableFrame.footer:SetPoint("TOPLEFT", 0, -(self.HEADER_HEIGHT + (memberCount * self.ROW_HEIGHT) + 4))
     tableFrame.footer:SetSize(contentWidth, self.FOOTER_HEIGHT)
-    tableFrame.footer.toggle:ClearAllPoints()
-    tableFrame.footer.toggle:SetPoint("RIGHT", tableFrame.footer, "RIGHT", 0, 0)
-    self:UpdateToggleButton()
+    self:LayoutFooterControls(tableFrame.footer)
 
     tableFrame:SetSize(contentWidth, height)
     return height

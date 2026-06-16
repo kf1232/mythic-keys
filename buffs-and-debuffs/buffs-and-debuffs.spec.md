@@ -39,7 +39,7 @@ Tracks current-season consumables and party buffs for the Ready tab. Maintains M
 - **Food status** — icon in Ready tab showing well-fed, hearty food, eating in progress, or missing; tooltip names the active food
 - **Flask / phial status** — icon with quality tier border; low remaining time highlighted; tooltip names the buff
 - **Weapon oil status** — icon with quality tier when a tracked oil enchant is active; empty when none
-- **Party buff list** — text column of buff names the player applied to each member (or “—” when none)
+- **Party buff list** — not owned here; Ready tab reads `Key.Api.UnitAuras:GetSelfSourcedBuffNames` (self-sourced raid buffs per member, not player-cast externals)
 - **Ready payload sync** — repair, food, flask, oil, and ready flag broadcast to other Key users in the group
 - **Live refresh** — consumable columns update while the party panel is open and the Ready tab is active
 

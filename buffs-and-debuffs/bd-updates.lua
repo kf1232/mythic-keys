@@ -56,6 +56,49 @@ local function IsInCombat()
     return InCombatLockdown and InCombatLockdown()
 end
 
+function Updates:CanProcessConsumables()
+    return not IsInCombat()
+end
+
+function Updates:DeferConsumableRefresh(channel)
+    if self.deferredCombatRefresh then
+        return
+    end
+
+    self.deferredCombatRefresh = channel or true
+    self:Trace("Buff&Debuff check disabled [combat start]", "defer-combat", nil)
+end
+
+function Updates:OnCombatStarted()
+    self:DeferConsumableRefresh("combat")
+    self:UpdatePolling()
+end
+
+function Updates:OnCombatEnded()
+    self:UpdatePolling()
+    self:FlushDeferredConsumableRefresh()
+end
+
+function Updates:FlushDeferredConsumableRefresh()
+    if not self.deferredCombatRefresh then
+        return
+    end
+
+    local channel = self.deferredCombatRefresh
+    self.deferredCombatRefresh = nil
+    self:Trace("Buff&Debuff refresh cleared [combat end]", "combat-end", nil)
+
+    if channel == "equipment" then
+        self:InvalidatePlayerReadyState()
+    end
+
+    self.dirtyChannel = nil
+    RunProtected("Key.BDUpdates:FlushDeferredConsumableRefresh", function()
+        self.lastFingerprint = self:GetConsumableFingerprint()
+        self:RunConsumableRefresh("combat-end")
+    end)
+end
+
 local function FingerprintValue(value, fallback)
     if value == nil or value == false then
         return fallback or ""
@@ -106,6 +149,11 @@ function Updates:ShouldRefreshReadyUI()
 end
 
 function Updates:ScheduleConsumablePoll()
+    if not self:CanProcessConsumables() then
+        self:DeferConsumableRefresh(self.dirtyChannel)
+        return
+    end
+
     if self.consumablePollTimer then
         return
     end
@@ -119,6 +167,11 @@ function Updates:ScheduleConsumablePoll()
 end
 
 function Updates:ScheduleReadyOnlyRefresh(reason)
+    if not self:CanProcessConsumables() then
+        self:DeferConsumableRefresh(reason)
+        return
+    end
+
     if not self:ShouldRefreshReadyUI() then
         return
     end
@@ -208,11 +261,6 @@ function Updates:RegisterUnitAuraEvents()
     self:Trace("UNIT_AURA registration failed")
 end
 
--- Backward-compatible alias for debug console and roster hooks.
-function Updates:RegisterAuraChannels(reason)
-    self:RefreshWatchedUnits(reason)
-end
-
 function Updates:GetConsumableFingerprint()
     if not Key.Auras or not Key.Auras.GetConsumableStatus then
         return ""
@@ -266,7 +314,7 @@ function Updates:ShouldRunPollTicker()
     return partyShown and not IsInCombat()
 end
 
-function Updates:StopPollTicker(reason)
+function Updates:StopPollTicker(reason, silent)
     SafeCancelTimer(self.consumablePollTimer)
     self.consumablePollTimer = nil
     SafeCancelTimer(self.readyRefreshTimer)
@@ -279,7 +327,9 @@ function Updates:StopPollTicker(reason)
     SafeCancelTimer(self.pollTicker)
     self.pollTicker = nil
     self.dirtyChannel = nil
-    self:Trace(reason or "poll ticker stopped")
+    if not silent and reason then
+        self:Trace(reason)
+    end
 end
 
 function Updates:UpdatePolling()
@@ -301,14 +351,16 @@ function Updates:UpdatePolling()
     end
 
     if self.pollTicker then
-        local reason = IsInCombat() and "poll ticker stopped (combat)" or "poll ticker stopped"
-        self:StopPollTicker(reason)
+        self:StopPollTicker(nil, IsInCombat())
     end
 end
 
 function Updates:MarkConsumablesDirty(channel, unit)
+    if not self:CanProcessConsumables() then
+        return
+    end
+
     self.dirtyChannel = channel or self.dirtyChannel or "dirty"
-    self:Trace(string.format("marked dirty channel=%s", self.dirtyChannel), "dirty:" .. tostring(self.dirtyChannel), 0.1)
 
     if unit and unit ~= "player" then
         self:ScheduleReadyOnlyRefresh(channel or "UNIT_AURA")
@@ -325,6 +377,11 @@ function Updates:RefreshReadyConsumablesIfShown(immediate, reason)
 end
 
 function Updates:PollConsumableChanges()
+    if not self:CanProcessConsumables() then
+        self:DeferConsumableRefresh(self.dirtyChannel)
+        return
+    end
+
     local fingerprint = self:GetConsumableFingerprint()
     local channel = self.dirtyChannel
     self.dirtyChannel = nil
@@ -334,20 +391,12 @@ function Updates:PollConsumableChanges()
     self.lastFingerprint = fingerprint
 
     if fingerprintChanged then
-        self:Trace(string.format(
-            "poll detected consumable change: %s -> %s",
-            tostring(previousFingerprint),
-            fingerprint
-        ))
+        self:Trace(string.format("Buff&Debuff changed [%s]", channel or "poll"))
         self:RunConsumableRefresh(channel or "poll")
         return
     end
 
     if channel then
-        self:Trace(string.format(
-            "event-driven ready refresh channel=%s (fingerprint unchanged)",
-            channel
-        ))
         self:ScheduleReadyOnlyRefresh(channel)
         return
     end
@@ -358,19 +407,11 @@ function Updates:PollConsumableChanges()
 end
 
 function Updates:RefreshReadyConsumables(immediate, reason)
-    local partyShown = Key.PartyUI and Key.PartyUI.IsShown and Key.PartyUI:IsShown()
-    local readyTab = Key.PartyUI and Key.PartyUI.IsReadyTabActive and Key.PartyUI:IsReadyTabActive()
-
-    self:Trace(string.format(
-        "RefreshReadyConsumables reason=%s immediate=%s partyShown=%s readyTab=%s",
-        reason or "?",
-        tostring(immediate == true),
-        tostring(partyShown == true),
-        tostring(readyTab == true)
-    ), "refresh:" .. tostring(reason or "generic"), 0.1)
+    if reason ~= "combat-end" and self:ShouldRefreshReadyUI() then
+        self:Trace(string.format("Buff&Debuff UI refresh [%s]", reason or "?"), "refresh:" .. tostring(reason or "generic"), 0.1)
+    end
 
     if not Key or not Key.Dispatch then
-        self:Trace("RefreshReadyConsumables skipped: Key.Dispatch missing")
         return
     end
 
@@ -383,18 +424,15 @@ end
 
 function Updates:SyncPlayerReadyPayload(reason)
     if not Key.PartySync then
-        self:Trace(string.format("SyncPlayerReadyPayload (%s) skipped: Key.PartySync missing", reason or "?"))
         return
     end
 
     Key.PartySync:PushReady(false)
 
-    self:Trace(string.format(
-        "SyncPlayerReadyPayload (%s) pushed %s",
-        reason or "?",
-        tostring(Key.PartySync.lastReadyPayload or "(none)")
-    ))
-    self:TraceConsumableState("player", "after sync")
+    if reason ~= "combat-end" then
+        self:Trace(string.format("Buff&Debuff synced [%s]", reason or "?"))
+    end
+    self:TraceConsumableState("player", reason or "sync")
 end
 
 function Updates:InvalidatePlayerReadyState()
@@ -402,13 +440,16 @@ function Updates:InvalidatePlayerReadyState()
         return
     end
 
-    self:Trace("InvalidatePlayerReadyState")
     Key.PartySync:InvalidatePayloadCache("ready")
     Key.PartySync:PushReady(false)
     Key.PartySync:PushReadyState(false)
 end
 
 function Updates:LogUnitAurasIfDebugging(unit, reason)
+    if not self:CanProcessConsumables() then
+        return
+    end
+
     if not Key.Debug.UI or not Key.Debug.UI:IsShown() then
         return
     end
@@ -421,7 +462,11 @@ function Updates:LogUnitAurasIfDebugging(unit, reason)
 end
 
 function Updates:RunConsumableRefresh(channel)
-    self:Trace(string.format("RunConsumableRefresh channel=%s", channel or "?"), "run-refresh", 0.1)
+    if not self:CanProcessConsumables() then
+        self:DeferConsumableRefresh(channel)
+        return
+    end
+
     self:RefreshReadyConsumablesIfShown(true, channel or "refresh")
     self:SyncPlayerReadyPayload(channel or "refresh")
 end
@@ -431,7 +476,10 @@ function Updates:OnUnitAura(unit)
         return
     end
 
-    self:Trace(string.format("UNIT_AURA unit=%s", unit or "?"), "unit-aura:" .. tostring(unit), 0.1)
+    if not self:CanProcessConsumables() then
+        return
+    end
+
     self:MarkConsumablesDirty("UNIT_AURA", unit)
     self:LogUnitAurasIfDebugging(unit, "UNIT_AURA")
 end
@@ -441,12 +489,20 @@ function Updates:OnInventoryChanged(unit)
         return
     end
 
+    if not self:CanProcessConsumables() then
+        return
+    end
+
     self:Trace("UNIT_INVENTORY_CHANGED unit=player", "inventory-changed", 0.1)
     self:MarkConsumablesDirty("UNIT_INVENTORY_CHANGED")
 end
 
 function Updates:OnPlayerSpellcastSucceeded(unit, castGUID, spellId)
     if unit and unit ~= "player" then
+        return
+    end
+
+    if not self:CanProcessConsumables() then
         return
     end
 
@@ -464,6 +520,10 @@ end
 
 function Updates:OnEquipmentChanged()
     self:Trace("PLAYER_EQUIPMENT_CHANGED")
+    if not self:CanProcessConsumables() then
+        return
+    end
+
     self:InvalidatePlayerReadyState()
     self:MarkConsumablesDirty("equipment")
 end
@@ -542,13 +602,19 @@ function Updates:Install()
                 self:OnRosterChanged(event)
             elseif event == "PLAYER_EQUIPMENT_CHANGED" then
                 self:OnEquipmentChanged()
-            elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
-                self:UpdatePolling()
+            elseif event == "PLAYER_REGEN_DISABLED" then
+                self:OnCombatStarted()
+            elseif event == "PLAYER_REGEN_ENABLED" then
+                self:OnCombatEnded()
             end
         end)
     end)
 
     self:Trace(string.format("Install complete (poll every %ds)", self.POLL_INTERVAL))
+
+    if IsInCombat() then
+        self:DeferConsumableRefresh("combat")
+    end
 end
 
 RunProtected("Key.BDUpdates:Install", function()

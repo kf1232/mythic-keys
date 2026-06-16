@@ -38,7 +38,7 @@ function API:GetSpellName(spellId, displayName)
 
     if Key.Log and Key.Log.TryDisplayValue then
         local spellName = Key.Log:TryDisplayValue(spellInfo.name)
-        if spellName and spellName ~= displayName then
+        if spellName and (not issecretvalue or not issecretvalue(spellName)) and spellName ~= displayName then
             return spellName
         end
         return nil

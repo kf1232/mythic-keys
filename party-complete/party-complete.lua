@@ -1,20 +1,28 @@
 local ADDON_NAME = ...
 
-Key.Teleports = Key.Teleports or {}
+Key.PartyComplete = Key.PartyComplete or {}
+local PartyComplete = Key.PartyComplete
+
+if not Key.Teleports then
+    error("Key.Teleports is missing. Load teleport-bar before party-complete.lua.")
+end
 local Teleports = Key.Teleports
 
 if not Teleports.SEASON_DUNGEONS then
     error("Key.Teleports.SEASON_DUNGEONS is missing. Load teleport-bar-data.lua before party-complete.lua.")
 end
 
-Teleports.MAX_BEST_ROWS = 40
-Teleports.BEST_ROW_GAP = 2
-Teleports.BEST_NAME_GAP = 2
-Teleports.OVERTIME_DESATURATION = 0.72
+PartyComplete.SEASON_DUNGEONS = Teleports.SEASON_DUNGEONS
+PartyComplete.SLOT_COUNT = Teleports.SLOT_COUNT
 
-function Teleports:GetBestTableMetrics(contentWidth)
-    local _, _, slotSize = self:ComputeLayout(contentWidth)
-    local pitch = slotSize + self.LAYOUT_GAP
+PartyComplete.MAX_BEST_ROWS = 40
+PartyComplete.BEST_ROW_GAP = 2
+PartyComplete.BEST_NAME_GAP = 2
+PartyComplete.OVERTIME_DESATURATION = 0.72
+
+function PartyComplete:GetBestTableMetrics(contentWidth)
+    local _, _, slotSize = Teleports:ComputeLayout(contentWidth)
+    local pitch = slotSize + Teleports.LAYOUT_GAP
     local rowHeight = math.max(16, math.floor(slotSize * 0.34))
     local nameHeight = math.max(10, math.floor(slotSize * 0.16))
     local rowPitch = nameHeight + self.BEST_NAME_GAP + rowHeight + self.BEST_ROW_GAP
@@ -22,7 +30,7 @@ function Teleports:GetBestTableMetrics(contentWidth)
     return rowHeight, rowPitch, slotSize, pitch, nameHeight
 end
 
-function Teleports:GetBestTableHeight(memberCount, contentWidth)
+function PartyComplete:GetBestTableHeight(memberCount, contentWidth)
     if not memberCount or memberCount == 0 then
         return 0
     end
@@ -32,7 +40,7 @@ function Teleports:GetBestTableHeight(memberCount, contentWidth)
     return (memberCount * bandHeight) + ((memberCount - 1) * self.BEST_ROW_GAP)
 end
 
-function Teleports:CreateBestCell(parent, justify)
+function PartyComplete:CreateBestCell(parent, justify)
     local cell = CreateFrame("Frame", nil, parent)
     cell.text = cell:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     justify = justify or "CENTER"
@@ -60,7 +68,7 @@ function Teleports:CreateBestCell(parent, justify)
     return cell
 end
 
-function Teleports:EnsureBestTable(parent)
+function PartyComplete:EnsureBestTable(parent)
     if self.bestTable then
         for rowIndex = 1, self.MAX_BEST_ROWS do
             local row = self.bestTable.rows[rowIndex]
@@ -90,13 +98,13 @@ function Teleports:EnsureBestTable(parent)
     return tableFrame
 end
 
-function Teleports:UpdateBestNameCell(cell, member, nameHeight)
+function PartyComplete:UpdateBestNameCell(cell, member, nameHeight)
     if not cell or not cell.text then
         return
     end
 
-    local memberName = member and member.name or "Unknown"
-    local r, g, b = self:GetClassColor(member and member.classFilename)
+    local memberName = Key.UI:DisplayText(member and member.name, "Unknown")
+    local r, g, b = Teleports:GetClassColor(member and member.classFilename)
     local fontSize = math.max(7, math.floor((nameHeight or 10) * 0.85))
 
     cell.text:SetFont("Fonts\\FRIZQT__.TTF", fontSize, "OUTLINE")
@@ -106,14 +114,15 @@ function Teleports:UpdateBestNameCell(cell, member, nameHeight)
     cell.tooltipBody = "Season best completions"
 end
 
-function Teleports:UpdateBestCell(cell, member, dungeon, level, overTime)
+function PartyComplete:UpdateBestCell(cell, member, dungeon, level, overTime)
     if not cell or not cell.text then
         return
     end
 
     local classFilename = member and member.classFilename
-    local dungeonName = self:GetDungeonName(dungeon)
-    local memberName = member and member.name or "Unknown"
+    local dungeonName = Teleports:GetDungeonName(dungeon)
+    local memberName = Key.UI:DisplayText(member and member.name, "Unknown")
+    level = Key.Keystones and Key.Keystones:AsAccessibleNumber(level) or nil
 
     if not level or level == 0 then
         cell.text:SetText("—")
@@ -123,7 +132,7 @@ function Teleports:UpdateBestCell(cell, member, dungeon, level, overTime)
         return
     end
 
-    local r, g, b = self:GetClassColor(classFilename)
+    local r, g, b = Teleports:GetClassColor(classFilename)
     if overTime then
         local scale = self.OVERTIME_DESATURATION
         r, g, b = r * scale, g * scale, b * scale
@@ -135,7 +144,7 @@ function Teleports:UpdateBestCell(cell, member, dungeon, level, overTime)
     cell.tooltipBody = overTime and string.format("Best: +%d (over time)", level) or string.format("Best: +%d", level)
 end
 
-function Teleports:LayoutBestTable(tableFrame, contentWidth, members)
+function PartyComplete:LayoutBestTable(tableFrame, contentWidth, members)
     if not tableFrame then
         return 0
     end

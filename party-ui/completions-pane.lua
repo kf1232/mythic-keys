@@ -4,13 +4,15 @@ Key.PartyUI = Key.PartyUI or {}
 local PartyUI = Key.PartyUI
 
 if not Key.Teleports then
-    error("Key.Teleports is missing. Load teleport-bar and party-complete before party-complete-pane.lua.")
+    error("Key.Teleports is missing. Load teleport-bar before party-ui/completions-pane.lua.")
 end
 
-local HEADER_HEIGHT = 28
-local PADDING = 10
-local BOTTOM_INSET = 34
-local SECTION_GAP = 8
+if not Key.PartyComplete then
+    error("Key.PartyComplete is missing. Load party-complete.lua before party-ui/completions-pane.lua.")
+end
+
+local HEADER_HEIGHT = Key.UI:GetHeaderHeight()
+local LAYOUT = Key.UI.LAYOUT
 local VISIBLE_MEMBER_ROWS = 6
 
 PartyUI.FRAME_LEVEL_TELEPORT_BAR = 30
@@ -22,7 +24,7 @@ function PartyUI:GetMemberBlockHeight(memberCount, contentWidth)
         return 0
     end
 
-    return Key.Teleports:GetBestTableHeight(memberCount, contentWidth)
+    return Key.PartyComplete:GetBestTableHeight(memberCount, contentWidth)
 end
 
 function PartyUI:ApplyCompletionsLayering(pane, teleportHeight)
@@ -37,7 +39,7 @@ function PartyUI:ApplyCompletionsLayering(pane, teleportHeight)
     pane.teleportBar:Raise()
 
     pane.scrollFrame:ClearAllPoints()
-    pane.scrollFrame:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, -(teleportHeight + SECTION_GAP))
+    pane.scrollFrame:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, -(teleportHeight + LAYOUT.sectionGap))
     pane.scrollFrame:SetFrameLevel(self.FRAME_LEVEL_SCROLL)
 end
 
@@ -80,13 +82,13 @@ function PartyUI:EnsureCompletionsPane(frame)
     end
 
     local pane = CreateFrame("Frame", nil, frame)
-    pane:SetPoint("TOPLEFT", PADDING, -(HEADER_HEIGHT + 4))
-    pane:SetPoint("BOTTOMRIGHT", -PADDING, BOTTOM_INSET)
+    pane:SetPoint("TOPLEFT", LAYOUT.padding, -(HEADER_HEIGHT + 4))
+    pane:SetPoint("BOTTOMRIGHT", -LAYOUT.padding, LAYOUT.bottomInset)
 
     pane.teleportBar = Key.Teleports:EnsureBar(pane)
     pane.teleportBar:SetPoint("TOPLEFT", 0, 0)
 
-    pane.bestTable = Key.Teleports:EnsureBestTable(pane)
+    pane.bestTable = Key.PartyComplete:EnsureBestTable(pane)
 
     self:EnsureCompletionsScroll(pane)
     frame.completionsPane = pane
@@ -102,7 +104,16 @@ function PartyUI:RefreshCompletionsPane(contentWidth, members)
 
     pane.bestTable:ClearAllPoints()
     pane.bestTable:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
-    Key.Teleports:LayoutBestTable(pane.bestTable, contentWidth, members)
+
+    local function LayoutBestTable()
+        Key.PartyComplete:LayoutBestTable(pane.bestTable, contentWidth, members)
+    end
+
+    if Key.Log and Key.Log.RunProtected then
+        Key.Log:RunProtected("PartyUI:LayoutBestTable", LayoutBestTable)
+    else
+        LayoutBestTable()
+    end
 
     local contentHeight = self:GetMemberBlockHeight(memberCount, contentWidth)
     local visibleRows = math.max(1, math.min(memberCount, VISIBLE_MEMBER_ROWS))
@@ -114,5 +125,5 @@ function PartyUI:RefreshCompletionsPane(contentWidth, members)
         Key.PartyCompleteLog:LogLayout(contentWidth, memberCount, contentHeight, viewportHeight, teleportHeight)
     end
 
-    return teleportHeight + SECTION_GAP + viewportHeight + self.PANE_BOTTOM_PADDING
+    return teleportHeight + LAYOUT.sectionGap + viewportHeight + LAYOUT.paneBottomPadding
 end

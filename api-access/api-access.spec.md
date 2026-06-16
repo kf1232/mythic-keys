@@ -29,7 +29,7 @@ Isolated reads from Blizzard APIs used across Key. Keeps spell, aura, durability
 ## Public API
 
 - **Spell:** `GetSpellInfo(spellId)`, `GetIcon(spellId)`, `GetSpellName(spellId)`, `ResolveIcon(spellId)`
-- **Auras:** `Scan(unit, filter, callback)`, `Collect(unit, filter)`, `GetSelfSourcedBuffNames(unit, filter)`
+- **Auras:** `Scan(unit, filter, callback)`, `Collect(unit, filter)`, `GetSelfSourcedBuffNames(unit, filter)` — returns readable names of `HELPFUL|RAID` auras on `unit` whose `sourceUnit` is the same unit (self-sourced buffs on that member, not buffs the local player cast on them)
 - **Durability:** `GetRepairPercent()` — player gear average 0–100%
 - **Weapon enchant:** `GetInfo()` — active oil/enchant metadata
 - **Minimap:** `GetOffsetForAngle(minimap, angle, radius)`, `GetAngleFromCursor(minimap)`
@@ -42,7 +42,7 @@ None.
 
 - **Spell icons and names** — artwork and display names for consumable rows, tooltips, and logs
 - **Unit aura scans** — merged buff/debuff lists per unit, including readable fields when the raw API hides values
-- **Party buff labels** — comma-separated names of raid-relevant buffs the player cast on a party member
+- **Party buff labels (Ready tab)** — comma-separated names from `GetSelfSourcedBuffNames`: raid-category buffs on a member where `UnitIsUnit(aura.sourceUnit, unit)` (buffs that member applied to themselves). Does not list buffs the local player cast onto other party members.
 - **Gear repair percent** — single 0–100% durability figure for the Ready tab repair column
 - **Weapon oil/enchant state** — whether a temporary weapon enchant is active and which enchant applies
 - **Minimap orbit positions** — screen offsets that keep a button on the minimap edge for round, square, and shaped minimap skins

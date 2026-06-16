@@ -4,10 +4,6 @@ Key = Key or {}
 
 Key.DEFAULT_ICON = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\icon"
 Key.GCD_SPELL_ID = 61304
-Key.refreshDebounce = 0.1
-
-local refreshTimer
-local pendingRefreshCtx
 
 local function PrintMessage(text)
     if DEFAULT_CHAT_FRAME then
@@ -16,70 +12,6 @@ local function PrintMessage(text)
         print(text)
     end
 end
-
-local function MergeRefreshContext(existing, incoming)
-    existing = existing or {}
-    incoming = incoming or {}
-    return {
-        ifShown = existing.ifShown or incoming.ifShown,
-        readyOnly = existing.readyOnly == true and incoming.readyOnly == true,
-        immediate = incoming.immediate or existing.immediate,
-    }
-end
-
-local function RunRefreshUI(ctx)
-    if not Key.PartyUI then
-        return
-    end
-    if ctx.ifShown and not Key.PartyUI:IsShown() then
-        return
-    end
-    if ctx.readyOnly then
-        if Key.PartyUI.RefreshReadyOnly then
-            Key.PartyUI:RefreshReadyOnly()
-        end
-        return
-    end
-    Key.PartyUI:Refresh()
-end
-
-local function CancelRefreshSchedule()
-    if refreshTimer then
-        refreshTimer:Cancel()
-        refreshTimer = nil
-    end
-end
-
-function Key.RefreshPartyUIIfShown()
-    Key.Dispatch("REFRESH_UI", { ifShown = true })
-end
-
-function Key.SchedulePartySyncIfGrouped()
-    if IsInGroup() then
-        Key.Dispatch("PARTY_SYNC_SCHEDULE")
-    end
-end
-
-Key.RegisterTrigger("REFRESH_UI", function(ctx)
-    if ctx.immediate then
-        CancelRefreshSchedule()
-        if pendingRefreshCtx then
-            ctx = MergeRefreshContext(pendingRefreshCtx, ctx)
-            pendingRefreshCtx = nil
-        end
-        RunRefreshUI(ctx)
-        return
-    end
-
-    pendingRefreshCtx = MergeRefreshContext(pendingRefreshCtx, ctx)
-    CancelRefreshSchedule()
-    refreshTimer = C_Timer.NewTimer(Key.refreshDebounce, function()
-        refreshTimer = nil
-        local pending = pendingRefreshCtx
-        pendingRefreshCtx = nil
-        RunRefreshUI(pending or {})
-    end)
-end)
 
 Key.RegisterTrigger("ADDON_LOADED", function()
     if not Key.PartyUI or not Key.PartyUI.TogglePanel then
@@ -167,7 +99,6 @@ end
 local eventFrame = CreateFrame("Frame")
 for _, event in ipairs({
     "ADDON_LOADED",
-    "PLAYER_LOGIN",
     "PLAYER_ENTERING_WORLD",
     "GROUP_JOINED",
     "GROUP_LEFT",

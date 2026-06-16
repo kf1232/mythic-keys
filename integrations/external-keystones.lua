@@ -11,10 +11,10 @@ local KEYSTONE_PROVIDERS = {
 }
 
 function External:NormalizeSender(sender)
-    if Key.Keystones and Key.Keystones.NormalizeSender then
-        return Key.Keystones:NormalizeSender(sender)
+    if Key.Party and Key.Party.NormalizeSender then
+        return Key.Party:NormalizeSender(sender)
     end
-    if not Key.Keystones:IsAccessible(sender) or sender == "" then
+    if not Key.Cache or not Key.Cache:IsAccessible(sender) or sender == "" then
         return nil
     end
     return Ambiguate(sender, "none")

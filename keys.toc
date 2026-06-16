@@ -2,15 +2,17 @@
 ## Title: Key
 ## Notes: Party list for Mythic+ groups. Type /keyf to open.
 ## Author: MasFink
-## Version: 2026.0613.2
+## Version: 2026.0616.1
 ## IconTexture: Interface\AddOns\mythic-keys\media\icon
 ## OptionalDeps: DBM-Core, Details
 ## SavedVariables: KeyDB
 
 # Public release manifest. Debug and *-logging.lua modules are dev-only (see mythic-keys.toc).
+# Keep shared load order in sync with mythic-keys.toc when adding or moving files.
 
 Log.lua
 cache\cache.lua
+party\party.lua
 api-access\c-spell.lua
 api-access\c-unit-auras.lua
 api-access\get-weapon-enchant-info.lua
@@ -30,7 +32,8 @@ party-complete\party-complete.lua
 ready-check\ready-check.lua
 ready-check\ready-check-ui.lua
 party-ui\party-ui.lua
-party-complete\party-complete-pane.lua
+party-ui\completions-pane.lua
 minimap\minimap-button.lua
 buffs-and-debuffs\bd-updates.lua
+ui-refresh.lua
 Core.lua

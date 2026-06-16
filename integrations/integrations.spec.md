@@ -20,7 +20,7 @@ Optional bridges to other addons’ keystone libraries. When DBM-Core or Details
 
 ## Depends on (TOC order)
 
-- `keystones/keystones.lua`, `party-sync/party-sync.lua` (optional at runtime: DBM-Core, Details)
+- `cache/cache.lua`, `party/party.lua`, `keystones/keystones.lua`, `party-sync/party-sync.lua` (optional at runtime: DBM-Core, Details)
 
 ## Public API
 

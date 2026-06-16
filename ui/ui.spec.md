@@ -20,9 +20,13 @@ Shared frame, theme, and widget helpers used across Key panels. Provides consist
 
 ## Public API
 
-- **Theme:** `LAYOUT`, `FONTS`, `BACKDROPS`, `THEME`, `GetTheme()`, `GetTabStyle(active)`
-- **Style:** `ApplyTabButtonStyle()`, `ApplyReadyToggleStyle()`, `ApplyFrameStyle()`, `ApplyFontStringStyle()`
-- **Widgets:** `CreateFrame()`, `CreateButton()`, `CreateScrollFrame()`, `CreateFontString()`, `CreateTabButton()`, `CreateCloseButton()`, `CreateRefreshButton()`
+- **Theme:** `LAYOUT`, `FONTS`, `BACKDROPS`, `THEME`, `GetTheme()`
+- **Layout:** `GetTitleBarHeight()`, `GetHeaderHeight()`, `GetChromeVerticalOffset()`, `GetCloseButtonAnchors()`, `LayoutTitleBarChrome(frame, options?)`
+- **Config:** `MergeConfig()`, `WindowConfig()`, `TitleBarConfig()`, `TitleBarLabelConfig()`, `BodyTextConfig()`, `MutedTextConfig()`
+- **Text:** `DisplayText(value, fallback?)`
+- **Style:** `ApplyTabButtonStyle()`, `ApplyFrameStyle()`, `ApplyFontStringStyle()`, `GetTextButtonStyle(variant)`, `ApplyTextButtonStyle()`, `RefreshTextButtonStyle()`, `RestoreTextButtonStyle()`
+- **Widgets:** `CreateFrame()`, `CreateScrollFrame()`, `CreateFontString()`, `CreateTextButton()`, `CreateActionButton()`, `CreateTabButton()`, `CreateChromeButton()`, `CreateCloseButton()`, `CreateRefreshButton()`
+- **Actions:** `RunSlashCommand(command)`
 
 ## Triggers
 

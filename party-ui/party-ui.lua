@@ -3,38 +3,36 @@ local ADDON_NAME = ...
 Key.PartyUI = Key.PartyUI or {}
 local PartyUI = Key.PartyUI
 
-local HEADER_HEIGHT = 28
-local PADDING = 10
-local TAB_HEIGHT = 26
+local HEADER_HEIGHT = Key.UI:GetHeaderHeight()
+local LAYOUT = Key.UI.LAYOUT
+local TAB_HEIGHT = LAYOUT.buttonHeight
 local TAB_GAP = 4
-local BOTTOM_INSET = 34
 local MAX_FRAME_WIDTH = 1248
 local MAX_FRAME_HEIGHT = 900
 
 PartyUI.TAB_COMPLETIONS = "completions"
 PartyUI.TAB_READY = "ready"
-PartyUI.PANE_BOTTOM_PADDING = 8
 PartyUI.activeTab = PartyUI.activeTab or PartyUI.TAB_COMPLETIONS
 PartyUI.refreshLockUntil = PartyUI.refreshLockUntil or 0
 PartyUI.REFRESH_COOLDOWN = 10
 
 local function GetDefaultFrameWidth()
     if Key.Teleports and Key.Teleports.GetDefaultFrameWidth then
-        return Key.Teleports:GetDefaultFrameWidth(PADDING)
+        return Key.Teleports:GetDefaultFrameWidth(LAYOUT.padding)
     end
     return 848
 end
 
 local function GetMinFrameWidth()
     if Key.Teleports and Key.Teleports.GetMinFrameWidth then
-        return Key.Teleports:GetMinFrameWidth(PADDING)
+        return Key.Teleports:GetMinFrameWidth(LAYOUT.padding)
     end
     return 248
 end
 
 local function GetFrameLimits()
     if Key.Teleports then
-        return Key.Teleports:GetMinFrameWidth(PADDING), Key.Teleports:GetMaxFrameWidth(PADDING)
+        return Key.Teleports:GetMinFrameWidth(LAYOUT.padding), Key.Teleports:GetMaxFrameWidth(LAYOUT.padding)
     end
     return GetMinFrameWidth(), MAX_FRAME_WIDTH
 end
@@ -43,19 +41,19 @@ local DEFAULT_FRAME_WIDTH = GetDefaultFrameWidth()
 local MIN_FRAME_WIDTH = GetMinFrameWidth()
 
 function PartyUI:CollectMembers()
-    if Key.Keystones and Key.Keystones.CollectMembers then
-        return Key.Keystones:CollectMembers()
+    if Key.Party and Key.Party.CollectMembers then
+        return Key.Party:CollectMembers()
     end
 
     return {}
 end
 
 function PartyUI:GetContentWidth()
-    local minContent = Key.Teleports and Key.Teleports:GetMinContentWidth() or (MIN_FRAME_WIDTH - (PADDING * 2))
+    local minContent = Key.Teleports and Key.Teleports:GetMinContentWidth() or (MIN_FRAME_WIDTH - (LAYOUT.padding * 2))
     if not self.frame then
-        return math.max(minContent, DEFAULT_FRAME_WIDTH - (PADDING * 2))
+        return math.max(minContent, DEFAULT_FRAME_WIDTH - (LAYOUT.padding * 2))
     end
-    return math.max(minContent, self.frame:GetWidth() - (PADDING * 2))
+    return math.max(minContent, self.frame:GetWidth() - (LAYOUT.padding * 2))
 end
 
 function PartyUI:CreateTabButton(parent, label, tabId)
@@ -156,6 +154,33 @@ function PartyUI:UpdateRefreshButton()
     button:SetEnabled(not self:IsRefreshLocked())
 end
 
+function PartyUI:ClosePanel()
+    if not self.frame or not self.frame:IsShown() then
+        return
+    end
+
+    self.frame:Hide()
+
+    if Key.BDUpdates and Key.BDUpdates.UpdatePolling then
+        Key.BDUpdates:UpdatePolling()
+    end
+end
+
+function PartyUI:CreateCloseButton(frame)
+    return Key.UI:CreateCloseButton(frame, {
+        onClick = function()
+            PartyUI:ClosePanel()
+        end,
+    })
+end
+
+function PartyUI:LayoutChrome(frame)
+    Key.UI:LayoutTitleBarChrome(frame, {
+        refreshButton = frame.refreshButton,
+        titleLabel = frame.titleBar and frame.titleBar.titleLabel,
+    })
+end
+
 function PartyUI:CreateRefreshButton(parent, closeButton)
     return Key.UI:CreateRefreshButton(parent, {
         matchSizeTo = closeButton,
@@ -183,19 +208,19 @@ end
 function PartyUI:EnsureRefreshButton(frame)
     if frame.refreshButton then
         self:UpdateRefreshButton()
+        self:LayoutChrome(frame)
         return
     end
 
     local close = frame.closeButton
     if not close then
-        close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-        close:SetPoint("TOPRIGHT", -2, -2)
+        close = self:CreateCloseButton(frame)
         frame.closeButton = close
     end
 
     frame.refreshButton = self:CreateRefreshButton(frame, close)
-    frame.refreshButton:SetPoint("TOPRIGHT", close, "TOPLEFT", -Key.UI.LAYOUT.refreshButtonGap, 0)
     self:UpdateRefreshButton()
+    self:LayoutChrome(frame)
 end
 
 function PartyUI:OnRefreshClick()
@@ -230,8 +255,8 @@ function PartyUI:EnsureReadyPane(frame)
     end
 
     local pane = CreateFrame("Frame", nil, frame)
-    pane:SetPoint("TOPLEFT", PADDING, -(HEADER_HEIGHT + 4))
-    pane:SetPoint("BOTTOMRIGHT", -PADDING, BOTTOM_INSET)
+    pane:SetPoint("TOPLEFT", LAYOUT.padding, -(HEADER_HEIGHT + 4))
+    pane:SetPoint("BOTTOMRIGHT", -LAYOUT.padding, LAYOUT.bottomInset)
     pane:Hide()
 
     pane.readyTable = Key.ReadyCheck.UI:EnsureTable(pane)
@@ -246,8 +271,8 @@ function PartyUI:EnsureTabBar(frame)
     end
 
     local tabBar = CreateFrame("Frame", nil, frame)
-    tabBar:SetPoint("BOTTOMLEFT", PADDING, PADDING)
-    tabBar:SetPoint("BOTTOMRIGHT", -PADDING, PADDING)
+    tabBar:SetPoint("BOTTOMLEFT", LAYOUT.padding, LAYOUT.padding)
+    tabBar:SetPoint("BOTTOMRIGHT", -LAYOUT.padding, LAYOUT.padding)
     tabBar:SetHeight(TAB_HEIGHT)
 
     frame.tabBar = tabBar
@@ -265,7 +290,7 @@ function PartyUI:EnsureTitleBar(frame)
     local titleBar = Key.UI:CreateFrame(Key.UI:TitleBarConfig(), frame)
     frame.titleBar = titleBar
 
-    Key.UI:CreateFontString(Key.UI:TitleBarLabelConfig({
+    titleBar.titleLabel = Key.UI:CreateFontString(Key.UI:TitleBarLabelConfig({
         text = "Key",
     }), titleBar)
 
@@ -317,12 +342,7 @@ function PartyUI:EnsureFrame()
     end)
 
     self:EnsureTitleBar(frame)
-
-    local close = Key.UI:CreateCloseButton(frame)
-    frame.closeButton = close
-
-    frame.refreshButton = self:CreateRefreshButton(frame, close)
-    frame.refreshButton:SetPoint("TOPRIGHT", close, "TOPLEFT", -Key.UI.LAYOUT.refreshButtonGap, 0)
+    self:EnsureRefreshButton(frame)
 
     self:CreateResizeHandle(frame)
     self:EnsureCompletionsPane(frame)
@@ -335,18 +355,18 @@ end
 
 function PartyUI:RefreshReadyPane(contentWidth, members)
     if not Key.ReadyCheck then
-        return self.PANE_BOTTOM_PADDING
+        return LAYOUT.paneBottomPadding
     end
 
     Key.ReadyCheck:RebindCache()
 
     local pane = self.frame.readyPane
     if not pane or not pane.readyTable then
-        return self.PANE_BOTTOM_PADDING
+        return LAYOUT.paneBottomPadding
     end
 
     local tableHeight = Key.ReadyCheck.UI:LayoutTable(pane.readyTable, contentWidth, members)
-    return tableHeight + self.PANE_BOTTOM_PADDING
+    return tableHeight + LAYOUT.paneBottomPadding
 end
 
 local function TraceReadyRefresh(message)
@@ -390,54 +410,67 @@ end
 function PartyUI:Refresh()
     self:EnsureFrame()
 
-    if Key.Keystones then
-        Key.Keystones:RebindPartyCache()
+    local function RunRefresh()
+        if Key.Keystones then
+            Key.Keystones:RebindPartyCache()
+        end
+
+        local frame = self.frame
+        local contentWidth = self:GetContentWidth()
+        self._layingOut = true
+
+        self:LayoutTabs()
+
+        local members = self:CollectMembers()
+        local completionsHeight = self:RefreshCompletionsPane(contentWidth, members) or 0
+        local readyHeight = self:RefreshReadyPane(contentWidth, members) or LAYOUT.paneBottomPadding
+
+        local contentHeight
+        if self.activeTab == self.TAB_READY then
+            contentHeight = HEADER_HEIGHT + 4 + readyHeight + LAYOUT.bottomInset
+        else
+            contentHeight = HEADER_HEIGHT + 4 + completionsHeight + LAYOUT.bottomInset
+        end
+
+        local minFrameWidth, maxFrameWidth = GetFrameLimits()
+        frame:SetResizeBounds(minFrameWidth, contentHeight, maxFrameWidth, MAX_FRAME_HEIGHT)
+
+        if frame:GetWidth() < minFrameWidth then
+            frame:SetWidth(minFrameWidth)
+        end
+
+        local prevMinHeight = self._lastMinHeight
+        if not prevMinHeight or frame:GetHeight() <= prevMinHeight + 2 or contentHeight < prevMinHeight then
+            frame:SetHeight(contentHeight)
+        end
+        self._lastMinHeight = contentHeight
+
+        self._layingOut = false
+
+        if Key.BDUpdates and Key.BDUpdates.UpdatePolling then
+            Key.BDUpdates:UpdatePolling()
+        end
     end
 
-    local frame = self.frame
-    local contentWidth = self:GetContentWidth()
-    self._layingOut = true
-
-    self:LayoutTabs()
-
-    local members = self:CollectMembers()
-    local completionsHeight = self:RefreshCompletionsPane(contentWidth, members)
-    local readyHeight = self:RefreshReadyPane(contentWidth, members)
-
-    local contentHeight
-    if self.activeTab == self.TAB_READY then
-        contentHeight = HEADER_HEIGHT + 4 + readyHeight + BOTTOM_INSET
-    else
-        contentHeight = HEADER_HEIGHT + 4 + completionsHeight + BOTTOM_INSET
+    if Key.Log and Key.Log.RunProtected then
+        local ok = Key.Log:RunProtected("PartyUI:Refresh", RunRefresh)
+        if not ok then
+            self._layingOut = false
+        end
+        return
     end
 
-    local minFrameWidth, maxFrameWidth = GetFrameLimits()
-    frame:SetResizeBounds(minFrameWidth, contentHeight, maxFrameWidth, MAX_FRAME_HEIGHT)
-
-    if frame:GetWidth() < minFrameWidth then
-        frame:SetWidth(minFrameWidth)
-    end
-
-    local prevMinHeight = self._lastMinHeight
-    if not prevMinHeight or frame:GetHeight() <= prevMinHeight + 2 or contentHeight < prevMinHeight then
-        frame:SetHeight(contentHeight)
-    end
-    self._lastMinHeight = contentHeight
-
-    self._layingOut = false
-
-    if Key.BDUpdates and Key.BDUpdates.UpdatePolling then
-        Key.BDUpdates:UpdatePolling()
-    end
+    RunRefresh()
 end
 
 function PartyUI:TogglePanel()
     self:EnsureFrame()
     if self.frame:IsShown() then
-        self.frame:Hide()
+        self:ClosePanel()
     else
-        Key.Dispatch("UI_PANEL_OPEN")
         self.frame:Show()
+        Key.Dispatch("UI_PANEL_OPEN")
+        self:Refresh()
         if Key.Debug.Click and Key.Debug.Click:IsEnabled() then
             Key.Debug.Click:RewireAll()
         end
@@ -455,38 +488,3 @@ end
 function PartyUI:IsReadyTabActive()
     return self.activeTab == self.TAB_READY
 end
-
-Key.RegisterTrigger("GROUP_LEFT", function()
-    Key.Dispatch("REFRESH_UI", { ifShown = true })
-end)
-
-Key.RegisterTrigger("PLAYER_ENTERING_WORLD", function()
-    Key.Dispatch("REFRESH_UI", { ifShown = true })
-end)
-
-Key.RegisterTrigger("KEYSTONE_DATA_CHANGED", function()
-    Key.Dispatch("REFRESH_UI", { ifShown = true })
-end)
-
-Key.RegisterTrigger("PARTY_CHANGED", function(ctx)
-    Key.Dispatch("REFRESH_UI", {
-        ifShown = true,
-        immediate = ctx.immediate,
-    })
-end)
-
-Key.RegisterTrigger("UI_PANEL_OPEN", function()
-    Key.Dispatch("REFRESH_UI", { immediate = true })
-end)
-
-Key.RegisterTrigger("UI_REFRESH_CLICK", function()
-    Key.Dispatch("REFRESH_UI", { immediate = true })
-end)
-
-Key.RegisterTrigger("UI_READY_TOGGLE", function()
-    Key.Dispatch("REFRESH_UI", { ifShown = true, immediate = true })
-end)
-
-Key.RegisterTrigger("UI_RESIZE", function()
-    Key.Dispatch("REFRESH_UI")
-end)

@@ -50,6 +50,61 @@ function ClickDebug:SupportsOnClick(frame)
     return frame and frame.RegisterForClicks ~= nil
 end
 
+function ClickDebug:CanSetPropagateMouse(frame)
+    if not frame or InCombatLockdown() then
+        return false
+    end
+
+    if frame.IsProtected and frame:IsProtected() then
+        return false
+    end
+
+    -- Teleport shells sit above spell action buttons; WoW blocks propagation changes there.
+    if frame.action or frame.slots then
+        return false
+    end
+
+    return frame.SetPropagateMouseClicks ~= nil and frame.SetPropagateMouseMotion ~= nil
+end
+
+function ClickDebug:GetPropagateMouseSafe(frame)
+    if not frame then
+        return nil, nil
+    end
+
+    local clicks, motion
+    if frame.GetPropagateMouseClicks then
+        local ok, value = pcall(frame.GetPropagateMouseClicks, frame)
+        if ok then
+            clicks = value
+        end
+    end
+    if frame.GetPropagateMouseMotion then
+        local ok, value = pcall(frame.GetPropagateMouseMotion, frame)
+        if ok then
+            motion = value
+        end
+    end
+
+    return clicks, motion
+end
+
+function ClickDebug:SetPropagateMouseSafe(frame, clicks, motion)
+    if not self:CanSetPropagateMouse(frame) then
+        return false
+    end
+
+    local ok = true
+    if clicks ~= nil then
+        ok = pcall(frame.SetPropagateMouseClicks, frame, clicks) and ok
+    end
+    if motion ~= nil then
+        ok = pcall(frame.SetPropagateMouseMotion, frame, motion) and ok
+    end
+
+    return ok
+end
+
 function ClickDebug:RestoreFrame(frame)
     local state = self.attached[frame]
     if not state then
@@ -62,11 +117,8 @@ function ClickDebug:RestoreFrame(frame)
         frame:SetScript("OnClick", state.onClick)
     end
 
-    if state.propagateClicks ~= nil then
-        frame:SetPropagateMouseClicks(state.propagateClicks)
-    end
-    if state.propagateMotion ~= nil then
-        frame:SetPropagateMouseMotion(state.propagateMotion)
+    if state.propagateClicks ~= nil or state.propagateMotion ~= nil then
+        self:SetPropagateMouseSafe(frame, state.propagateClicks, state.propagateMotion)
     end
     if state.mouseEnabled ~= nil then
         frame:EnableMouse(state.mouseEnabled)
@@ -94,8 +146,7 @@ function ClickDebug:Attach(frame, label, options)
     end
 
     local mouseEnabled = frame.IsMouseEnabled and frame:IsMouseEnabled()
-    local propagateClicks = frame.GetPropagateMouseClicks and frame:GetPropagateMouseClicks()
-    local propagateMotion = frame.GetPropagateMouseMotion and frame:GetPropagateMouseMotion()
+    local propagateClicks, propagateMotion = self:GetPropagateMouseSafe(frame)
 
     local supportsOnClick = self:SupportsOnClick(frame)
 
@@ -112,10 +163,9 @@ function ClickDebug:Attach(frame, label, options)
     }
     self.attached[frame] = state
 
-    if options.passThrough then
+    if options.passThrough and not options.skipPropagate then
         -- Keep original mouse state; only propagate so clicks reach secure children.
-        frame:SetPropagateMouseClicks(true)
-        frame:SetPropagateMouseMotion(true)
+        self:SetPropagateMouseSafe(frame, true, true)
     elseif options.forceMouse then
         frame:EnableMouse(true)
     end
@@ -150,38 +200,40 @@ function ClickDebug:WireTeleportSlots()
     end
 
     local Teleports = Key.Teleports
-    self:Attach(Teleports.bar, "teleport.bar", { passThrough = true })
+    -- Mouse layers already configured in Teleports:ConfigureSlotMouseLayers; skip SetPropagate here.
+    local teleportOpts = { passThrough = true, skipPropagate = true }
+    self:Attach(Teleports.bar, "teleport.bar", teleportOpts)
 
     for index, slot in ipairs(Teleports.bar.slots or {}) do
         local prefix = "teleport.slot" .. index
-        self:Attach(slot, prefix .. ".shell", { passThrough = true })
+        self:Attach(slot, prefix .. ".shell", teleportOpts)
 
         if slot.labelBar then
-            self:Attach(slot.labelBar, prefix .. ".labelBar", { passThrough = true })
+            self:Attach(slot.labelBar, prefix .. ".labelBar", teleportOpts)
         end
         if slot.tokenContainer then
-            self:Attach(slot.tokenContainer, prefix .. ".tokens", { passThrough = true })
+            self:Attach(slot.tokenContainer, prefix .. ".tokens", teleportOpts)
         end
         if slot.leaderOutline then
-            self:Attach(slot.leaderOutline, prefix .. ".leaderOutline", { passThrough = true })
+            self:Attach(slot.leaderOutline, prefix .. ".leaderOutline", teleportOpts)
         end
         -- Never hook secure action buttons — replacing mouse/click scripts breaks spell casts.
     end
 end
 
 function ClickDebug:WireBestTable()
-    if not Key.Teleports or not Key.Teleports.bestTable then
+    if not Key.PartyComplete or not Key.PartyComplete.bestTable then
         return
     end
 
-    local tableFrame = Key.Teleports.bestTable
+    local tableFrame = Key.PartyComplete.bestTable
     self:Attach(tableFrame, "bestTable.root", { passThrough = true })
 
     for rowIndex, row in ipairs(tableFrame.rows or {}) do
         if row.name and row.name:IsShown() then
             self:Attach(row.name, "bestTable.row" .. rowIndex .. ".name")
         end
-        for colIndex = 1, (Key.Teleports.SLOT_COUNT or 8) do
+        for colIndex = 1, (Key.PartyComplete.SLOT_COUNT or 8) do
             local cell = row[colIndex]
             if cell and cell:IsShown() then
                 self:Attach(cell, string.format("bestTable.row%d.col%d", rowIndex, colIndex))
@@ -213,7 +265,7 @@ function ClickDebug:WirePartyUI()
         self:Attach(completions, "party.completionsPane", { passThrough = true })
 
         if completions.teleportBar then
-            self:Attach(completions.teleportBar, "party.teleportBar", { passThrough = true })
+            self:Attach(completions.teleportBar, "party.teleportBar", { passThrough = true, skipPropagate = true })
         end
         if completions.scrollFrame then
             self:Attach(completions.scrollFrame, "party.scrollFrame", { forceMouse = true })
@@ -240,11 +292,39 @@ function ClickDebug:WirePartyUI()
     end
 end
 
+function ClickDebug:ScheduleRewireAfterCombat()
+    if self.rewirePending then
+        return
+    end
+
+    self.rewirePending = true
+    local regenFrame = self.regenFrame
+    if not regenFrame then
+        regenFrame = CreateFrame("Frame")
+        self.regenFrame = regenFrame
+        regenFrame:SetScript("OnEvent", function(frame)
+            frame:UnregisterEvent("PLAYER_REGEN_ENABLED")
+            ClickDebug.rewirePending = false
+            if ClickDebug.enabled then
+                ClickDebug:RewireAll()
+            end
+        end)
+    end
+
+    regenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+end
+
 function ClickDebug:RewireAll()
     if not self.enabled then
         return
     end
 
+    if InCombatLockdown() then
+        self:ScheduleRewireAfterCombat()
+        return
+    end
+
+    self.rewirePending = false
     self:DetachAll()
     self:WirePartyUI()
     self:WireTeleportSlots()

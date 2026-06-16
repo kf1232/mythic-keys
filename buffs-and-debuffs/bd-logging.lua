@@ -66,7 +66,7 @@ function AurasLog:GetAuraName(aura, rawAura)
     for _, source in ipairs({ merged, rawAura, aura }) do
         if source and source.name then
             local name = keyLog:TryDisplayValue(source.name)
-            if name and name ~= "[secret]" then
+            if name and (not issecretvalue or not issecretvalue(name)) and name ~= "[secret]" then
                 return name
             end
         end
@@ -80,11 +80,13 @@ function AurasLog:GetAuraName(aura, rawAura)
 end
 
 function AurasLog:FormatAuraRemaining(merged)
-    if not merged
-        or not merged.expirationTime
-        or merged.expirationTime <= 0
-        or (issecretvalue and issecretvalue(merged.expirationTime))
-    then
+    if not merged or not merged.expirationTime then
+        return nil
+    end
+    if issecretvalue and issecretvalue(merged.expirationTime) then
+        return nil
+    end
+    if merged.expirationTime <= 0 then
         return nil
     end
 
@@ -109,7 +111,7 @@ function AurasLog:GetAuraStacks(aura, rawAura)
     for _, source in ipairs({ aura, rawAura }) do
         if source then
             local stacks = source.applications or source.count or source.charges
-            if stacks and stacks > 1 then
+            if stacks and (not issecretvalue or not issecretvalue(stacks)) and stacks > 1 then
                 return keyLog:TryDisplayValue(stacks)
             end
         end
@@ -218,12 +220,138 @@ function AurasLog:GetAuraLabel(aura, rawAura)
     return label .. " (" .. table.concat(details, ", ") .. ")"
 end
 
+local function AppendSpellIndex(index, spellId, label)
+    if not spellId then
+        return
+    end
+    index[#index + 1] = { spellId = spellId, label = label }
+end
+
+local function BuildSpellIndex(entries, includeBuffSpellIds)
+    local index = {}
+    for _, entry in ipairs(entries or {}) do
+        if entry.spellIds then
+            for _, spellId in ipairs(entry.spellIds) do
+                AppendSpellIndex(index, spellId, entry.label)
+            end
+        end
+        AppendSpellIndex(index, entry.spellId, entry.label)
+        if entry.enchantIds then
+            for _, enchantId in ipairs(entry.enchantIds) do
+                AppendSpellIndex(index, enchantId, entry.label .. " (enchant)")
+            end
+        end
+        if includeBuffSpellIds and entry.buffSpellIds then
+            for _, spellId in ipairs(entry.buffSpellIds) do
+                AppendSpellIndex(index, spellId, entry.label .. " (buff)")
+            end
+        end
+    end
+    table.sort(index, function(a, b)
+        return a.spellId < b.spellId
+    end)
+    return index
+end
+
 function AurasLog:CollectAuras(unit, filter)
     local auras = Auras()
-    if not auras then
+    if not auras or not Key.Api.UnitAuras or not Key.Api.UnitAuras.Collect then
         return {}
     end
-    return auras:CollectAuras(unit, filter)
+
+    return Key.Api.UnitAuras:Collect(unit, filter, function(readableAura, rawAura)
+        return auras:MergeAuraSources(readableAura, rawAura)
+    end)
+end
+
+function AurasLog:GetConsumableDiagnostics(unit)
+    local auras = Auras()
+    local diagnostics = {
+        catalog = {
+            flasks = auras and auras.FLASKS or {},
+            phials = auras and auras.PHIALS or {},
+            oils = auras and auras.OILS or {},
+            qualityTiers = auras and auras.QUALITY_TIERS,
+        },
+        flaskIndex = BuildSpellIndex(auras and auras.FLASKS),
+        phialIndex = BuildSpellIndex(auras and auras.PHIALS),
+        oilIndex = BuildSpellIndex(auras and auras.OILS, true),
+        status = {},
+        auraMatches = {},
+        weaponOil = nil,
+    }
+
+    if not auras or not unit or not UnitExists(unit) then
+        return diagnostics
+    end
+
+    local foodOk, foodLabel, flaskReady, flaskLabel, oilOk, oilLabel,
+        foodIcon, foodHearty, oilIcon, flaskIcon, flaskQualityTier, _, oilQualityTier,
+        foodEating, foodEatingLabel, foodEatingIcon = auras:GetConsumableStatus(unit)
+
+    diagnostics.status = {
+        food = {
+            ok = foodOk,
+            label = foodLabel,
+            icon = foodIcon,
+            hearty = foodHearty,
+            eating = foodEating,
+            eatingLabel = foodEatingLabel,
+            eatingIcon = foodEatingIcon,
+        },
+        flask = {
+            ready = flaskReady,
+            detected = flaskIcon ~= nil,
+            label = flaskLabel,
+            icon = flaskIcon,
+            qualityTier = flaskQualityTier,
+        },
+        oil = {
+            ok = oilOk,
+            label = oilLabel,
+            icon = oilIcon,
+            qualityTier = oilQualityTier,
+        },
+    }
+
+    auras:ScanAuras(unit, "HELPFUL", function(aura, rawAura, index)
+        local merged = auras:MergeAuraSources(aura, rawAura)
+        local spellId = merged and merged.spellId
+        local accessibleSpellId = spellId and (not issecretvalue or not issecretvalue(spellId)) and spellId or nil
+        local knownFlask = accessibleSpellId and auras:GetKnownFlaskEntry(accessibleSpellId)
+        local knownOil = accessibleSpellId and auras:GetKnownOilEntry(accessibleSpellId)
+        local knownPhial = accessibleSpellId and auras:GetKnownPhialEntry(accessibleSpellId)
+        local classifyKind, classifyLabel = auras:ClassifyAura(merged)
+
+        diagnostics.auraMatches[#diagnostics.auraMatches + 1] = {
+            index = index,
+            name = auras:GetAuraDisplayName(merged),
+            spellId = accessibleSpellId,
+            maxPoint = auras:GetAuraMaxPoint(aura, rawAura),
+            knownFlask = knownFlask and knownFlask.label,
+            knownOil = knownOil and knownOil.label,
+            knownPhial = knownPhial and knownPhial.label,
+            classifyKind = classifyKind,
+            classifyLabel = classifyLabel,
+        }
+    end)
+
+    if UnitIsUnit(unit, "player") and Key.Api.WeaponEnchant and Key.Api.WeaponEnchant.GetInfo then
+        local weaponEnchant = Key.Api.WeaponEnchant:GetInfo()
+        local enchantId = weaponEnchant and weaponEnchant.enchantId
+        local accessibleEnchantId = enchantId and (not issecretvalue or not issecretvalue(enchantId)) and enchantId or nil
+        local knownOil = accessibleEnchantId and auras:GetKnownOilEntry(accessibleEnchantId)
+
+        diagnostics.weaponOil = {
+            hasMainHand = weaponEnchant and weaponEnchant.hasMainHand and true or false,
+            hasOffHand = weaponEnchant and weaponEnchant.hasOffHand and true or false,
+            enchantId = accessibleEnchantId,
+            knownLabel = knownOil and knownOil.label,
+            qualityTier = accessibleEnchantId and auras:GetOilQualityTierForId(accessibleEnchantId),
+        }
+    end
+
+    return diagnostics
 end
 
 function AurasLog:ShouldLogAuras(unit)
@@ -267,20 +395,15 @@ function AurasLog:LogUpdateConsumableState(unit, reason)
         return
     end
 
-    local food, _, flaskReady, flaskLabel, oil, _, _, _, _, flaskIcon, flaskQualityTier, _, _, foodEating = auras:GetConsumableStatus(unit)
+    local food, _, flaskReady, _, oil, _, _, _, _, flaskIcon = auras:GetConsumableStatus(unit)
     local unitLabel = keyLog:SafeValue(UnitName(unit)) or unit
 
     self:LogUpdate(string.format(
-        "%s %s — food=%s eating=%s flask=%s (%s, icon=%s, tier=%s) oil=%s",
+        "[%s] %s — food=%s flask=%s oil=%s",
         reason or "state",
         unitLabel,
         food and "yes" or "no",
-        foodEating and "yes" or "no",
-        flaskIcon and "detected" or "no",
-        flaskReady and "ready" or "not-ready",
-        flaskLabel or "nil",
-        self:FormatOptionalIcon(flaskIcon),
-        tostring(flaskQualityTier or "nil"),
+        flaskIcon and (flaskReady and "ready" or "detected") or "no",
         oil and "yes" or "no"
     ))
 end
@@ -362,14 +485,14 @@ function AurasLog:LogConsumableDiagnostics(unit)
     if not keyLog then
         return
     end
-    if not auras or not auras.GetConsumableDiagnostics then
+    if not auras then
         Write(Key.Log.STATUS.DEBUG, "Consumable diagnostics: unavailable (Key.Auras missing)")
         return
     end
 
     unit = unit or "player"
     local unitLabel = keyLog:SafeValue(UnitName(unit)) or unit
-    local diagnostics = auras:GetConsumableDiagnostics(unit)
+    local diagnostics = self:GetConsumableDiagnostics(unit)
 
     Write(Key.Log.STATUS.DEBUG, string.format("--- Consumable diagnostics (%s) ---", unitLabel))
 

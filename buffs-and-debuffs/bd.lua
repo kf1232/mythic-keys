@@ -136,13 +136,6 @@ function Auras:MergeAuraSources(aura, rawAura)
     return merged
 end
 
-function Auras:BuildReadableAuraLookup(unit, filter)
-    if Key.Api.UnitAuras and Key.Api.UnitAuras.BuildReadableLookup then
-        return Key.Api.UnitAuras:BuildReadableLookup(unit, filter)
-    end
-    return {}
-end
-
 function Auras:ScanAuras(unit, filter, callback)
     if not Key.Api.UnitAuras or not Key.Api.UnitAuras.Scan then
         return
@@ -153,23 +146,14 @@ function Auras:ScanAuras(unit, filter, callback)
     end)
 end
 
-function Auras:CollectAuras(unit, filter)
-    if not Key.Api.UnitAuras or not Key.Api.UnitAuras.Collect then
-        return {}
-    end
-
-    return Key.Api.UnitAuras:Collect(unit, filter, function(readableAura, rawAura)
-        return self:MergeAuraSources(readableAura, rawAura)
-    end)
-end
-
 function Auras:GetAuraPointValues(aura, rawAura)
     local values = {}
 
     for _, source in ipairs({ aura, rawAura }) do
-        if source and source.points then
-            for _, value in ipairs(source.points) do
-                if value and (not issecretvalue or not issecretvalue(value)) and type(value) == "number" then
+        local points = source and source.points
+        if points and not IsSecretValue(points) and type(points) == "table" then
+            for _, value in ipairs(points) do
+                if IsUsableValue(value) and type(value) == "number" then
                     values[#values + 1] = value
                 end
             end
@@ -308,18 +292,12 @@ function Auras:IsHeartyFoodName(name)
     return self:NameMatchesPatterns(name, config.heartyPatterns)
 end
 
-function Auras:GetAuraNameCandidates(aura, displayFn)
+function Auras:GetAuraNameCandidates(aura)
     local names = {}
 
     local function addName(name)
         if not IsUsableValue(name) then
             return
-        end
-        if displayFn then
-            name = displayFn(name)
-            if not IsUsableValue(name) then
-                return
-            end
         end
         if name == "" or name == "[secret]" then
             return
@@ -344,18 +322,6 @@ function Auras:GetAuraDisplayName(aura)
         return name
     end
     return nil
-end
-
-function Auras:NameMatchesFood(name)
-    return self:NameMatchesKind(name, "food")
-end
-
-function Auras:NameMatchesFlask(name)
-    return self:NameMatchesKind(name, "flask")
-end
-
-function Auras:NameMatchesOil(name)
-    return self:NameMatchesKind(name, "oil")
 end
 
 function Auras:AuraMatchesKind(aura, kindKey)
@@ -459,11 +425,15 @@ function Auras:GetAuraIcon(aura)
 end
 
 function Auras:GetAuraRemainingSeconds(aura)
-    if not aura or not aura.expirationTime or aura.expirationTime <= 0 then
+    if not aura or not aura.expirationTime then
         return nil
     end
 
     if issecretvalue and issecretvalue(aura.expirationTime) then
+        return nil
+    end
+
+    if aura.expirationTime <= 0 then
         return nil
     end
 
@@ -473,18 +443,6 @@ function Auras:GetAuraRemainingSeconds(aura)
     end
 
     return remaining
-end
-
-function Auras:GetDefaultFoodIcon(hearty)
-    return self:GetDefaultIconForKind("food", hearty)
-end
-
-function Auras:GetDefaultOilIcon()
-    return self:GetDefaultIconForKind("oil")
-end
-
-function Auras:GetDefaultFlaskIcon()
-    return self:GetDefaultIconForKind("flask")
 end
 
 function Auras:GetFlaskQualityTier(aura)
@@ -542,38 +500,6 @@ function Auras:ClassifyAura(aura)
         if self:AuraMatchesKind(aura, kindKey) then
             local config = self:GetConsumableConfig(kindKey)
             return config.kind, label or config.defaultLabel
-        end
-    end
-
-    return nil
-end
-
-function Auras:GetAuraKindHint(aura, rawAura, displayFn)
-    local merged = self:MergeAuraSources(aura, rawAura)
-    local names = {}
-
-    for _, source in ipairs({ merged, rawAura, aura }) do
-        if not source then
-            break
-        end
-        for _, name in ipairs(self:GetAuraNameCandidates(source, displayFn)) do
-            names[#names + 1] = name
-        end
-    end
-
-    for _, kindKey in ipairs(self.CLASSIFY_ORDER) do
-        for _, source in ipairs({ merged, rawAura, aura }) do
-            if source and self:GetKnownEntryForAura(source, kindKey) then
-                local config = self:GetConsumableConfig(kindKey)
-                return config.kind
-            end
-        end
-
-        for _, name in ipairs(names) do
-            if self:NameMatchesKind(name, kindKey) then
-                local config = self:GetConsumableConfig(kindKey)
-                return config.kind
-            end
         end
     end
 
@@ -668,142 +594,4 @@ function Auras:GetConsumableStatus(unit)
         foodEating ~= nil,
         foodEating and foodEating.label,
         foodEating and foodEating.icon
-end
-
-local function AppendSpellIndex(index, spellId, label)
-    if not spellId then
-        return
-    end
-    index[#index + 1] = { spellId = spellId, label = label }
-end
-
-local function BuildSpellIndex(entries, includeBuffSpellIds)
-    local index = {}
-    for _, entry in ipairs(entries or {}) do
-        if entry.spellIds then
-            for _, spellId in ipairs(entry.spellIds) do
-                AppendSpellIndex(index, spellId, entry.label)
-            end
-        end
-        AppendSpellIndex(index, entry.spellId, entry.label)
-        if entry.enchantIds then
-            for _, enchantId in ipairs(entry.enchantIds) do
-                AppendSpellIndex(index, enchantId, entry.label .. " (enchant)")
-            end
-        end
-        if includeBuffSpellIds and entry.buffSpellIds then
-            for _, spellId in ipairs(entry.buffSpellIds) do
-                AppendSpellIndex(index, spellId, entry.label .. " (buff)")
-            end
-        end
-    end
-    table.sort(index, function(a, b)
-        return a.spellId < b.spellId
-    end)
-    return index
-end
-
-function Auras:GetConsumableDiagnostics(unit)
-    local diagnostics = {
-        catalog = {
-            flasks = self.FLASKS or {},
-            phials = self.PHIALS or {},
-            oils = self.OILS or {},
-            qualityTiers = self.QUALITY_TIERS,
-        },
-        flaskIndex = BuildSpellIndex(self.FLASKS),
-        phialIndex = BuildSpellIndex(self.PHIALS),
-        oilIndex = BuildSpellIndex(self.OILS, true),
-        status = {},
-        auraMatches = {},
-        weaponOil = nil,
-    }
-
-    if not unit or not UnitExists(unit) then
-        return diagnostics
-    end
-
-    local foodOk, foodLabel, flaskReady, flaskLabel, oilOk, oilLabel,
-        foodIcon, foodHearty, oilIcon, flaskIcon, flaskQualityTier, _, oilQualityTier,
-        foodEating, foodEatingLabel, foodEatingIcon = self:GetConsumableStatus(unit)
-
-    diagnostics.status = {
-        food = {
-            ok = foodOk,
-            label = foodLabel,
-            icon = foodIcon,
-            hearty = foodHearty,
-            eating = foodEating,
-            eatingLabel = foodEatingLabel,
-            eatingIcon = foodEatingIcon,
-        },
-        flask = {
-            ready = flaskReady,
-            detected = flaskIcon ~= nil,
-            label = flaskLabel,
-            icon = flaskIcon,
-            qualityTier = flaskQualityTier,
-        },
-        oil = {
-            ok = oilOk,
-            label = oilLabel,
-            icon = oilIcon,
-            qualityTier = oilQualityTier,
-        },
-    }
-
-    self:ScanAuras(unit, "HELPFUL", function(aura, rawAura, index)
-        local merged = self:MergeAuraSources(aura, rawAura)
-        local spellId = merged and merged.spellId
-        local accessibleSpellId = spellId and (not issecretvalue or not issecretvalue(spellId)) and spellId or nil
-        local knownFlask = accessibleSpellId and self:GetKnownFlaskEntry(accessibleSpellId)
-        local knownOil = accessibleSpellId and self:GetKnownOilEntry(accessibleSpellId)
-        local knownPhial = accessibleSpellId and self:GetKnownPhialEntry(accessibleSpellId)
-        local classifyKind, classifyLabel = self:ClassifyAura(merged)
-
-        diagnostics.auraMatches[#diagnostics.auraMatches + 1] = {
-            index = index,
-            name = self:GetAuraDisplayName(merged),
-            spellId = accessibleSpellId,
-            maxPoint = self:GetAuraMaxPoint(aura, rawAura),
-            knownFlask = knownFlask and knownFlask.label,
-            knownOil = knownOil and knownOil.label,
-            knownPhial = knownPhial and knownPhial.label,
-            classifyKind = classifyKind,
-            classifyLabel = classifyLabel,
-        }
-    end)
-
-    if UnitIsUnit(unit, "player") and Key.Api.WeaponEnchant and Key.Api.WeaponEnchant.GetInfo then
-        local weaponEnchant = Key.Api.WeaponEnchant:GetInfo()
-        local enchantId = weaponEnchant and weaponEnchant.enchantId
-        local accessibleEnchantId = enchantId and (not issecretvalue or not issecretvalue(enchantId)) and enchantId or nil
-        local knownOil = accessibleEnchantId and self:GetKnownOilEntry(accessibleEnchantId)
-
-        diagnostics.weaponOil = {
-            hasMainHand = weaponEnchant and weaponEnchant.hasMainHand and true or false,
-            hasOffHand = weaponEnchant and weaponEnchant.hasOffHand and true or false,
-            enchantId = accessibleEnchantId,
-            knownLabel = knownOil and knownOil.label,
-            qualityTier = accessibleEnchantId and self:GetOilQualityTierForId(accessibleEnchantId),
-        }
-    end
-
-    return diagnostics
-end
-
-function Auras:FindAuraEntryBySpellId(unit, spellId)
-    if not IsUsableSpellId(spellId) then
-        return nil
-    end
-
-    for _, entry in ipairs(self:CollectAuras(unit, "HELPFUL")) do
-        for _, source in ipairs({ entry.aura, entry.rawAura }) do
-            if source and IsUsableSpellId(source.spellId) and source.spellId == spellId then
-                return entry
-            end
-        end
-    end
-
-    return nil
 end

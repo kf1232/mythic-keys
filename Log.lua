@@ -59,17 +59,12 @@ Log.STATUS = {
 Log.FEATURE = {
     CORE = "CORE",
     PARTY_SYNC = "SYNC",
-    INTEGRATIONS = "EXTK",
     TELEPORT_BAR = "TPBR",
     PARTY_COMPLETE = "PCMP",
     MINIMAP = "MINI",
     BUFFS_DEBUFFS = "B&DB",
     DEBUG = "DBUG",
     CLICK_DEBUG = "CLIK",
-    KEYSTONES = "KEYS",
-    PARTY_UI = "PUI",
-    READY_CHECK = "RDCK",
-    UI = "UI",
 }
 
 local function ResolveCaller(level)
@@ -183,7 +178,7 @@ function Log:TryDisplayValue(value)
     end
     if issecretvalue and issecretvalue(value) then
         local ok, result = pcall(string.format, "%s", value)
-        if ok and result and result ~= "" then
+        if ok and result and (not issecretvalue or not issecretvalue(result)) and result ~= "" then
             return result
         end
         return "[secret]"

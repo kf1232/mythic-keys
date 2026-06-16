@@ -12,6 +12,8 @@ Sync.PROTOCOL = {
     BEST = { prefix = "M", pattern = "^M:(.+)$" },
     READY = { prefix = "P", pattern = "^P:(%d+):(%d+):(%d+):(%d+):?(%d*)$" },
     READY_STATE = { prefix = "Y", pattern = "^Y:(%d+)$" },
+    ZONE = { prefix = "Z", pattern = "^Z:(.+)$" },
+    ZONE_TARGET = { prefix = "T", pattern = "^T:(.+)$" },
     REQUEST = "R",
 }
 
@@ -118,6 +120,40 @@ function Sync:BuildReadyStatePayload()
     return string.format("%s:0", self.PROTOCOL.READY_STATE.prefix)
 end
 
+function Sync:BuildZonePayload()
+    if Key.ReadyCheck and Key.ReadyCheck.BuildZonePayload then
+        return Key.ReadyCheck:BuildZonePayload()
+    end
+    return self.PROTOCOL.ZONE.prefix .. ":"
+end
+
+function Sync:BuildZoneTargetPayload()
+    if Key.ReadyCheck and Key.ReadyCheck.BuildZoneTargetPayload then
+        return Key.ReadyCheck:BuildZoneTargetPayload()
+    end
+    return self.PROTOCOL.ZONE_TARGET.prefix .. ":"
+end
+
+function Sync:PushZone(force)
+    local payload = self:BuildZonePayload()
+    if not force and payload == self.lastZonePayload then
+        return
+    end
+
+    self.lastZonePayload = payload
+    self:Send(payload)
+end
+
+function Sync:PushZoneTarget(force)
+    local payload = self:BuildZoneTargetPayload()
+    if not force and payload == self.lastZoneTargetPayload then
+        return
+    end
+
+    self.lastZoneTargetPayload = payload
+    self:Send(payload)
+end
+
 function Sync:PushReadyState(force)
     local payload = self:BuildReadyStatePayload()
     if not force and payload == self.lastReadyStatePayload then
@@ -169,6 +205,8 @@ function Sync:PushAll(force)
     self:PushBest(force)
     self:PushReady(force)
     self:PushReadyState(force)
+    self:PushZone(force)
+    self:PushZoneTarget(force)
 end
 
 function Sync:InvalidatePayloadCache(scope)
@@ -181,6 +219,8 @@ function Sync:InvalidatePayloadCache(scope)
     if not scope or scope == "ready" then
         self.lastReadyPayload = nil
         self.lastReadyStatePayload = nil
+        self.lastZonePayload = nil
+        self.lastZoneTargetPayload = nil
     end
 end
 
@@ -268,8 +308,8 @@ function Sync:OnAddonMessage(prefix, message, channel, sender)
         return
     end
 
-    if Key.Keystones and Key.Keystones.NormalizeSender then
-        sender = Key.Keystones:NormalizeSender(sender) or sender
+    if Key.Party and Key.Party.NormalizeSender then
+        sender = Key.Party:NormalizeSender(sender) or sender
     end
 
     if message == self.PROTOCOL.REQUEST then
@@ -308,6 +348,20 @@ function Sync:OnAddonMessage(prefix, message, channel, sender)
     local readyState = Key.ReadyCheck and Key.ReadyCheck:ParseReadyStatePayload(message)
     if readyState ~= nil then
         Key.ReadyCheck:SetPartyReadyState(sender, readyState)
+        Key.Dispatch("REFRESH_UI", { ifShown = true })
+        return
+    end
+
+    local zone = Key.ReadyCheck and Key.ReadyCheck:ParseZonePayload(message)
+    if zone ~= nil then
+        Key.ReadyCheck:SetPartyZone(sender, zone)
+        Key.Dispatch("REFRESH_UI", { ifShown = true })
+        return
+    end
+
+    local zoneTarget = Key.ReadyCheck and Key.ReadyCheck:ParseZoneTargetPayload(message)
+    if zoneTarget ~= nil then
+        Key.ReadyCheck:SetPartyTargetZone(sender, zoneTarget)
         Key.Dispatch("REFRESH_UI", { ifShown = true })
         return
     end
@@ -370,8 +424,12 @@ Key.RegisterTrigger("UI_REFRESH_CLICK", function()
     Sync:PushReady(true)
 end)
 
-Key.RegisterTrigger("UI_READY_TOGGLE", function()
-    Sync:PushReadyState(true)
-    Sync.lastReadyPayload = nil
-    Sync:PushReady(true)
+Key.RegisterTrigger("UI_ZONE_TARGET_SET", function()
+    Sync:PushZoneTarget(true)
+    Sync.lastZonePayload = nil
+    Sync:PushZone(true)
+end)
+
+Key.RegisterTrigger("UI_ZONE_CHANGED", function()
+    Sync:PushZone(false)
 end)

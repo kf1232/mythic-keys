@@ -7,11 +7,15 @@ Key.UI.LAYOUT = {
     paddingSmall = 8,
     frameInset = 4,
     titleOffsetY = -12,
-    closeButtonAnchors = {
-        { "TOPRIGHT", -2, -2 },
-    },
-    refreshButtonScale = 0.9,
+    titleBarGap = 4,
+    buttonHeight = 26,
+    buttonPaddingX = 12,
+    buttonMinWidth = 72,
+    chromeButtonSize = 26,
     refreshButtonGap = 2,
+    bottomInset = 34,
+    paneBottomPadding = 8,
+    sectionGap = 8,
 }
 
 Key.UI.FONTS = {
@@ -62,20 +66,108 @@ Key.UI.THEME = {
         tabActiveBorder = { 0.35, 0.75, 0.35, 1 },
         tabInactiveText = { 0.75, 0.75, 0.75, 1 },
         tabActiveText = { 1, 1, 1, 1 },
+        buttonHoverBg = { 0.16, 0.22, 0.16, 1 },
+        buttonHoverBorder = { 0.45, 0.8, 0.45, 1 },
+        buttonPressedBg = { 0.12, 0.2, 0.12, 1 },
+        buttonPressedBorder = { 0.3, 0.65, 0.3, 1 },
         statusOk = { 0.3, 0.9, 0.35, 1 },
         statusBad = { 0.9, 0.35, 0.35, 1 },
         slotBorder = { 0.35, 0.35, 0.35, 1 },
         slotActiveBorder = { 0.2, 0.55, 0.25, 1 },
         slotBg = { 0.08, 0.08, 0.08, 0.9 },
-        toggleReadyBg = { 0.14, 0.28, 0.14, 1 },
-        toggleUnreadyBg = { 0.28, 0.14, 0.14, 1 },
-        toggleUnreadyBorder = { 0.75, 0.35, 0.35, 1 },
         textDisabled = { 0.55, 0.55, 0.55, 1 },
     },
 }
 
 function Key.UI:GetTheme()
     return self.THEME.default
+end
+
+function Key.UI:DisplayText(value, fallback)
+    fallback = fallback or "?"
+
+    if value == nil then
+        return fallback
+    end
+
+    if Key.Log and Key.Log.TryDisplayValue then
+        local text = Key.Log:TryDisplayValue(value)
+        if text and text ~= "" and text ~= "[secret]" then
+            return text
+        end
+        return fallback
+    end
+
+    if issecretvalue and issecretvalue(value) then
+        return fallback
+    end
+
+    return tostring(value)
+end
+
+function Key.UI:GetTitleBarHeight()
+    return self.LAYOUT.frameInset * 2 + self.LAYOUT.chromeButtonSize
+end
+
+function Key.UI:GetHeaderHeight()
+    return self:GetTitleBarHeight() + self.LAYOUT.titleBarGap
+end
+
+function Key.UI:GetChromeVerticalOffset()
+    local inset = self.LAYOUT.frameInset
+    local titleHeight = self:GetTitleBarHeight()
+    local chromeSize = self.LAYOUT.chromeButtonSize
+    return -(inset + (titleHeight - chromeSize) / 2)
+end
+
+function Key.UI:GetCloseButtonAnchors()
+    local inset = self.LAYOUT.frameInset
+    return {
+        { "TOPRIGHT", -inset, self:GetChromeVerticalOffset() },
+    }
+end
+
+function Key.UI:LayoutTitleBarChrome(frame, options)
+    options = options or {}
+    local titleBar = frame.titleBar
+    local close = frame.closeButton
+    if not titleBar or not close then
+        return
+    end
+
+    local inset = self.LAYOUT.frameInset
+    local gap = options.buttonGap or self.LAYOUT.refreshButtonGap
+    local paddingSmall = self.LAYOUT.paddingSmall
+    local titleHeight = self:GetTitleBarHeight()
+    local yOffset = self:GetChromeVerticalOffset()
+    local refresh = options.refreshButton
+
+    titleBar:SetHeight(titleHeight)
+    titleBar:ClearAllPoints()
+    titleBar:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, -inset)
+    titleBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, -inset)
+
+    close:ClearAllPoints()
+    close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, yOffset)
+
+    if refresh then
+        refresh:ClearAllPoints()
+        refresh:SetPoint("TOPRIGHT", close, "TOPLEFT", -gap, 0)
+    end
+
+    local label = options.titleLabel or titleBar.titleLabel
+    local labelRight = refresh or close
+    if label then
+        label:ClearAllPoints()
+        label:SetPoint("LEFT", titleBar, "LEFT", paddingSmall, 0)
+        label:SetPoint("RIGHT", labelRight, "LEFT", -gap, 0)
+    end
+
+    local baseLevel = titleBar:GetFrameLevel()
+    close:SetFrameLevel(baseLevel + 2)
+    if refresh then
+        refresh:SetFrameLevel(baseLevel + 3)
+    end
 end
 
 function Key.UI:MergeConfig(base, overrides)
@@ -110,25 +202,13 @@ function Key.UI:TitleBarConfig(overrides)
 
     return self:MergeConfig({
         template = "BackdropTemplate",
-        height = 24,
+        height = self:GetTitleBarHeight(),
         anchors = {
             { "TOPLEFT", self.LAYOUT.frameInset, -self.LAYOUT.frameInset },
             { "TOPRIGHT", -self.LAYOUT.frameInset, -self.LAYOUT.frameInset },
         },
         backdrop = self.BACKDROPS.flat,
         backdropColor = theme.titleBarBg,
-    }, overrides)
-end
-
-function Key.UI:TitleConfig(overrides)
-    local theme = self:GetTheme()
-
-    return self:MergeConfig({
-        inherit = self.FONTS.header.inherit,
-        textColor = theme.textHeader,
-        anchors = {
-            { "TOP", 0, self.LAYOUT.titleOffsetY },
-        },
     }, overrides)
 end
 
@@ -139,7 +219,7 @@ function Key.UI:TitleBarLabelConfig(overrides)
         inherit = self.FONTS.label.inherit,
         textColor = theme.textHeader,
         anchors = {
-            { "LEFT", self.LAYOUT.paddingSmall, 0 },
+            { "LEFT", "$parent", "LEFT", self.LAYOUT.paddingSmall, 0 },
         },
     }, overrides)
 end
@@ -162,14 +242,38 @@ function Key.UI:MutedTextConfig(overrides)
     }, overrides)
 end
 
-function Key.UI:GetTabStyle(active)
+function Key.UI:GetTextButtonStyle(variant)
     local theme = self:GetTheme()
 
-    if active then
+    if variant == "active" then
         return {
             backdropColor = theme.tabActiveBg,
             backdropBorderColor = theme.tabActiveBorder,
             textColor = theme.tabActiveText,
+        }
+    end
+
+    if variant == "hover" then
+        return {
+            backdropColor = theme.buttonHoverBg,
+            backdropBorderColor = theme.buttonHoverBorder,
+            textColor = theme.tabActiveText,
+        }
+    end
+
+    if variant == "pressed" then
+        return {
+            backdropColor = theme.buttonPressedBg,
+            backdropBorderColor = theme.buttonPressedBorder,
+            textColor = theme.tabActiveText,
+        }
+    end
+
+    if variant == "disabled" then
+        return {
+            backdropColor = theme.tabBg,
+            backdropBorderColor = theme.tabBorder,
+            textColor = theme.textDisabled,
         }
     end
 
@@ -180,12 +284,12 @@ function Key.UI:GetTabStyle(active)
     }
 end
 
-function Key.UI:ApplyTabButtonStyle(button, active)
+function Key.UI:ApplyTextButtonStyle(button, variant)
     if not button then
         return
     end
 
-    local style = self:GetTabStyle(active)
+    local style = self:GetTextButtonStyle(variant)
 
     button:SetBackdropColor(unpack(style.backdropColor))
     button:SetBackdropBorderColor(unpack(style.backdropBorderColor))
@@ -193,46 +297,192 @@ function Key.UI:ApplyTabButtonStyle(button, active)
     if button.label then
         button.label:SetTextColor(unpack(style.textColor))
     end
+
+    button._styleVariant = variant
 end
 
-function Key.UI:ApplyReadyToggleStyle(button, ready, locked)
+function Key.UI:ResolveTextButtonVariant(button)
+    if not button:IsEnabled() then
+        return "disabled"
+    end
+
+    if button._active then
+        return "active"
+    end
+
+    return "inactive"
+end
+
+function Key.UI:RestoreTextButtonStyle(button)
     if not button then
         return
     end
 
-    local theme = self:GetTheme()
-
-    if ready then
-        button:SetBackdropColor(unpack(theme.toggleReadyBg))
-        button:SetBackdropBorderColor(unpack(theme.tabActiveBorder))
-    else
-        button:SetBackdropColor(unpack(theme.toggleUnreadyBg))
-        button:SetBackdropBorderColor(unpack(theme.toggleUnreadyBorder))
+    if button:IsMouseOver() and button:IsEnabled() and not button._active then
+        self:ApplyTextButtonStyle(button, "hover")
+        return
     end
 
-    if button.label then
-        if locked then
-            button.label:SetTextColor(unpack(theme.textDisabled))
-        else
-            button.label:SetTextColor(unpack(theme.tabActiveText))
+    self:ApplyTextButtonStyle(button, self:ResolveTextButtonVariant(button))
+end
+
+function Key.UI:RefreshTextButtonStyle(button)
+    self:RestoreTextButtonStyle(button)
+end
+
+function Key.UI:AttachTextButtonInteractions(button, options)
+    options = options or {}
+
+    local function OnEnter()
+        if button:IsEnabled() and not button._active then
+            self:ApplyTextButtonStyle(button, "hover")
         end
+        if options.onEnter then
+            options.onEnter(button)
+        end
+    end
+
+    local function OnLeave()
+        self:ApplyTextButtonStyle(button, self:ResolveTextButtonVariant(button))
+        if options.onLeave then
+            options.onLeave(button)
+        end
+    end
+
+    button:SetScript("OnEnter", OnEnter)
+    button:SetScript("OnLeave", OnLeave)
+    button:SetScript("OnMouseDown", function()
+        if button:IsEnabled() then
+            self:ApplyTextButtonStyle(button, "pressed")
+        end
+    end)
+    button:SetScript("OnMouseUp", function()
+        self:RestoreTextButtonStyle(button)
+    end)
+    button:SetScript("OnDisable", function()
+        self:ApplyTextButtonStyle(button, "disabled")
+    end)
+    button:SetScript("OnEnable", function()
+        self:RestoreTextButtonStyle(button)
+    end)
+
+    if options.onClick then
+        button:SetScript("OnClick", options.onClick)
     end
 end
 
-function Key.UI:CreateTabButton(parent, label, tabId, onClick)
-    local theme = self:GetTheme()
+function Key.UI:MeasureTextButtonWidth(label, minWidth)
+    if not self.measureString then
+        self.measureString = UIParent:CreateFontString(nil, "ARTWORK", self.FONTS.label.inherit)
+    end
+
+    self.measureString:SetText(label or "")
+    local textWidth = self.measureString:GetStringWidth() or 0
+    return math.max(minWidth or self.LAYOUT.buttonMinWidth, math.ceil(textWidth + (self.LAYOUT.buttonPaddingX * 2)))
+end
+
+function Key.UI:PrepareButtonMouse(button)
+    button:EnableMouse(true)
+    button:RegisterForClicks("LeftButtonUp")
+end
+
+function Key.UI:CreateTextButton(parent, options)
+    options = options or {}
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    self:PrepareButtonMouse(button)
 
     button:SetBackdrop(self.BACKDROPS.tab)
-    self:ApplyTabButtonStyle(button, false)
+    button._active = options.active == true
 
+    local label = options.label or ""
     button.label = button:CreateFontString(nil, "OVERLAY", self.FONTS.label.inherit)
     button.label:SetPoint("CENTER")
     button.label:SetText(label)
-    button.label:SetTextColor(unpack(theme.tabInactiveText))
-    button.tabId = tabId
 
-    button:SetScript("OnClick", onClick)
+    local width = options.width or self:MeasureTextButtonWidth(label, options.minWidth)
+    local height = options.height or self.LAYOUT.buttonHeight
+    button:SetSize(width, height)
+
+    if options.tabId then
+        button.tabId = options.tabId
+    end
+
+    self:ApplyTextButtonStyle(button, button._active and "active" or "inactive")
+    self:AttachTextButtonInteractions(button, options)
+
+    if options.anchors then
+        self:ApplyAnchors(button, options.anchors)
+    end
+
+    return button
+end
+
+function Key.UI:ApplyTabButtonStyle(button, active)
+    if not button then
+        return
+    end
+
+    button._active = active and true or false
+    self:RefreshTextButtonStyle(button)
+end
+
+function Key.UI:RunSlashCommand(command)
+    command = strtrim(command or "")
+    if command == "" then
+        return
+    end
+
+    local editBox = ChatEdit_ChooseBoxForSend()
+    if not editBox then
+        return
+    end
+
+    editBox:SetText(command)
+    ChatEdit_SendText(editBox)
+end
+
+function Key.UI:CreateActionButton(parent, label, onClick, width, options)
+    options = options or {}
+    options.label = label
+    options.onClick = onClick
+    options.width = width
+    return self:CreateTextButton(parent, options)
+end
+
+function Key.UI:CreateTabButton(parent, label, tabId, onClick)
+    return self:CreateTextButton(parent, {
+        label = label,
+        tabId = tabId,
+        onClick = onClick,
+    })
+end
+
+function Key.UI:CreateChromeButton(parent, options)
+    options = options or {}
+    local size = options.size or self.LAYOUT.chromeButtonSize
+    local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    self:PrepareButtonMouse(button)
+
+    button:SetBackdrop(self.BACKDROPS.tab)
+    button:SetSize(size, size)
+
+    button.icon = button:CreateTexture(nil, "ARTWORK")
+    button.icon:SetPoint("CENTER")
+    button.icon:SetSize(math.floor(size * 0.58), math.floor(size * 0.58))
+
+    if options.icon then
+        button.icon:SetTexture(options.icon)
+    end
+    if options.iconTexCoord then
+        button.icon:SetTexCoord(unpack(options.iconTexCoord))
+    end
+
+    self:ApplyTextButtonStyle(button, "inactive")
+    self:AttachTextButtonInteractions(button, options)
+
+    if options.anchors then
+        self:ApplyAnchors(button, options.anchors)
+    end
 
     return button
 end
@@ -394,18 +644,6 @@ function Key.UI:CreateFrame(config, parent)
     return frame
 end
 
-function Key.UI:CreateButton(config, parent)
-    parent = self:ResolveParent(parent or config.parent)
-    local button = CreateFrame(
-        "Button",
-        config.name,
-        parent,
-        config.template or "BackdropTemplate"
-    )
-    self:ApplyFrameStyle(button, config)
-    return button
-end
-
 function Key.UI:CreateScrollFrame(config, parent)
     parent = self:ResolveParent(parent or config.parent)
     local scrollFrame = CreateFrame(
@@ -434,52 +672,41 @@ function Key.UI:CreateFontString(config, parent)
     return fontString
 end
 
-function Key.UI:CreateCloseButton(parent)
-    return self:CreateButton({
-        template = "UIPanelCloseButton",
-        anchors = self.LAYOUT.closeButtonAnchors,
-    }, parent)
+function Key.UI:CreateCloseButton(parent, options)
+    options = options or {}
+    local size = self.LAYOUT.chromeButtonSize
+
+    return self:CreateTextButton(parent, {
+        label = "X",
+        width = size,
+        height = size,
+        minWidth = size,
+        anchors = options.anchors or self:GetCloseButtonAnchors(),
+        onClick = options.onClick or function(button)
+            local frame = button:GetParent()
+            if frame and frame.Hide then
+                frame:Hide()
+            end
+        end,
+    })
 end
 
 function Key.UI:CreateRefreshButton(parent, options)
     options = options or {}
-    local button = CreateFrame("Button", nil, parent, "UIPanelSquareButton")
-
     local size = options.size
     if not size and options.matchSizeTo then
-        size = math.max(16, math.floor(options.matchSizeTo:GetWidth() * self.LAYOUT.refreshButtonScale))
+        size = math.max(self.LAYOUT.chromeButtonSize, math.floor(options.matchSizeTo:GetWidth()))
     end
-    size = size or 24
+    size = size or self.LAYOUT.chromeButtonSize
 
-    button:SetSize(size, size)
-
-    if button.icon then
-        button.icon:SetTexture("Interface\\Buttons\\UI-RefreshButton")
-        button.icon:SetTexCoord(0, 1, 0, 1)
-        button.icon:ClearAllPoints()
-        button.icon:SetPoint("CENTER")
-        button.icon:SetSize(math.floor(size * 0.68), math.floor(size * 0.68))
-    end
-
-    if options.onClick then
-        button:SetScript("OnClick", options.onClick)
-    end
-
-    if options.onEnter then
-        button:SetScript("OnEnter", options.onEnter)
-    end
-
-    if options.onLeave then
-        button:SetScript("OnLeave", options.onLeave)
-    end
-
-    if options.anchors then
-        self:ApplyAnchors(button, options.anchors)
-    end
+    local button = self:CreateChromeButton(parent, {
+        size = size,
+        icon = "Interface\\Buttons\\UI-RefreshButton",
+        onClick = options.onClick,
+        onEnter = options.onEnter,
+        onLeave = options.onLeave,
+        anchors = options.anchors,
+    })
 
     return button
 end
-
--- Backward compatibility for older references.
-Key.UI.BACKDROPS.panelBordered = Key.UI.BACKDROPS.window
-Key.UI.THEME.debug = Key.UI.THEME.default

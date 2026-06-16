@@ -2,7 +2,7 @@
 
 ## Summary
 
-Group data sync over the `KeyF` addon message prefix. Pushes and receives keystones, season bests, ready consumables, and ready toggles when the roster changes, on login, and on manual refresh.
+Group data sync over the `KeyF` addon message prefix. Pushes and receives keystones, season bests, ready consumables, and zone rally data when the roster changes, on login, and on manual refresh.
 
 ## Namespace
 
@@ -16,12 +16,12 @@ Group data sync over the `KeyF` addon message prefix. Pushes and receives keysto
 
 ## Depends on (TOC order)
 
-- `keystones/keystones.lua`, `ready-check/ready-check.lua`, `integrations/external-keystones.lua`
+- `cache/cache.lua`, `party/party.lua`, `keystones/keystones.lua`, `ready-check/ready-check.lua`, `integrations/external-keystones.lua`
 
 ## Public API
 
-- **Protocol:** `PREFIX` (`KeyF`), `PROTOCOL` (`K`, `M`, `P`, `Y`, `R`)
-- **Send:** `PushAll(force?)`, `PushKey(force?)`, `PushBest(force?)`, `PushReady(force?)`, `PushReadyState(force?)`, `SchedulePartySync()`
+- **Protocol:** `PREFIX` (`KeyF`), `PROTOCOL` (`K`, `M`, `P`, `Y`, `Z`, `T`, `R`)
+- **Send:** `PushAll(force?)`, `PushKey(force?)`, `PushBest(force?)`, `PushReady(force?)`, `PushReadyState(force?)`, `PushZone(force?)`, `PushZoneTarget(force?)`, `SchedulePartySync()`
 - **Receive:** `OnAddonMessage(prefix, message, channel, sender)`
 - **Lifecycle:** `BootstrapIfGrouped()`, `OnPartyChanged()`, `OnGroupLeft()`, `InvalidatePayloadCache(scope)`
 
@@ -34,13 +34,14 @@ Group data sync over the `KeyF` addon message prefix. Pushes and receives keysto
 - `GROUP_CHANGED`, `PLAYER_ENTERING_WORLD`, `KEYSTONE_DATA_CHANGED` — schedule sync / invalidate payloads
 - `CHAT_MSG_ADDON` — inbound message handling
 - `PARTY_SYNC_SCHEDULE`, `PARTY_CHANGED` — debounced roster push
-- `UI_PANEL_OPEN`, `UI_REFRESH_CLICK`, `UI_READY_TOGGLE` — push on panel/refresh/toggle
+- `UI_PANEL_OPEN`, `UI_REFRESH_CLICK` — push on panel open / manual refresh
+- `UI_ZONE_TARGET_SET`, `UI_ZONE_CHANGED` — push zone target / zone on set / player zone change
 
 **Dispatches:** `PARTY_CHANGED`, `PARTY_SYNC_SCHEDULE`, `REFRESH_UI` (via inbound messages and schedule)
 
 ## Output / Actions
 
-- **Auto broadcast** — shares key, bests, and ready state when joining a group or on roster change (panel closed is fine)
+- **Auto broadcast** — shares key, bests, ready consumables, and zone rally data when joining a group or on roster change (panel closed is fine)
 - **Inbound merge** — applies other Key users’ messages into `Key.Cache` via keystones and ready-check
 - **Refresh request** — `R` message triggers a full re-push from peers
 - **Session survival** — coordinates with `Key.Cache` session mirrors across loading screens until group leave

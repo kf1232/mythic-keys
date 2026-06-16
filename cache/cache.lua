@@ -16,8 +16,8 @@ function Cache:IsAccessible(value)
 end
 
 function Cache:BuildLookupKeys(name)
-    if Key.Keystones and Key.Keystones.BuildLookupKeys then
-        return Key.Keystones:BuildLookupKeys(name)
+    if Key.Party and Key.Party.BuildLookupKeys then
+        return Key.Party:BuildLookupKeys(name)
     end
 
     if not self:IsAccessible(name) or name == "" then
@@ -28,8 +28,8 @@ function Cache:BuildLookupKeys(name)
 end
 
 function Cache:FindPartyUnitForSender(sender)
-    if Key.Keystones and Key.Keystones.FindPartyUnitForSender then
-        return Key.Keystones:FindPartyUnitForSender(sender)
+    if Key.Party and Key.Party.FindPartyUnitForSender then
+        return Key.Party:FindPartyUnitForSender(sender)
     end
     return nil
 end

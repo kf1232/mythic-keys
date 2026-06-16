@@ -9,8 +9,8 @@ local function Log()
     return Key.Log
 end
 
-local function Teleports()
-    return Key.Teleports
+local function PartyComplete()
+    return Key.PartyComplete
 end
 
 local function WriteEvent(status, payload, options)
@@ -69,13 +69,13 @@ function PartyCompleteLog:LogBestTableLayout(contentWidth, memberCount, tableHei
 end
 
 function PartyCompleteLog:LogInit()
-    local teleports = Teleports()
+    local partyComplete = PartyComplete()
     self:LogUpdate(
         string.format(
             "initialized dungeons=%d maxRows=%d table=%s",
-            teleports and teleports.SLOT_COUNT or 0,
-            teleports and teleports.MAX_BEST_ROWS or 0,
-            (teleports and teleports.bestTable) and "yes" or "no"
+            partyComplete and partyComplete.SLOT_COUNT or 0,
+            partyComplete and partyComplete.MAX_BEST_ROWS or 0,
+            (partyComplete and partyComplete.bestTable) and "yes" or "no"
         ),
         "party-complete:init",
         30
@@ -83,24 +83,24 @@ function PartyCompleteLog:LogInit()
 end
 
 function PartyCompleteLog:LogSnapshot()
-    local teleports = Teleports()
-    if not teleports then
+    local partyComplete = PartyComplete()
+    if not partyComplete then
         return
     end
 
     WriteEvent(Key.Log.STATUS.DEBUG, string.format(
         "dungeons=%d maxRows=%d table=%s",
-        teleports.SLOT_COUNT or 0,
-        teleports.MAX_BEST_ROWS or 0,
-        teleports.bestTable and "yes" or "no"
+        partyComplete.SLOT_COUNT or 0,
+        partyComplete.MAX_BEST_ROWS or 0,
+        partyComplete.bestTable and "yes" or "no"
     ))
 
-    if teleports.bestTable then
+    if partyComplete.bestTable then
         WriteEvent(Key.Log.STATUS.DEBUG, string.format(
             "tableSize=%dx%d parent=%s",
-            teleports.bestTable:GetWidth(),
-            teleports.bestTable:GetHeight(),
-            teleports.bestTable:GetParent() and teleports.bestTable:GetParent():GetName() or "(none)"
+            partyComplete.bestTable:GetWidth(),
+            partyComplete.bestTable:GetHeight(),
+            partyComplete.bestTable:GetParent() and partyComplete.bestTable:GetParent():GetName() or "(none)"
         ))
     end
 

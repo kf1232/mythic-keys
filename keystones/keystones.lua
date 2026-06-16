@@ -16,145 +16,15 @@ function Keystones:IsAccessible(value)
     return Cache:IsAccessible(value)
 end
 
-function Keystones:NormalizeSender(sender)
-    if not self:IsAccessible(sender) or sender == "" then
-        return nil
-    end
-    return Ambiguate(sender, "none")
-end
-
-function Keystones:BuildLookupKeys(name)
-    if not self:IsAccessible(name) or name == "" then
-        return {}
-    end
-
-    local keys = {
-        name,
-        Ambiguate(name, "none"),
-        Ambiguate(name, "short"),
-        Ambiguate(name, "guild"),
-    }
-
-    local seen = {}
-    local result = {}
-    for _, key in ipairs(keys) do
-        if key and key ~= "" and not seen[key] then
-            seen[key] = true
-            result[#result + 1] = key
-        end
-    end
-    return result
-end
-
-function Keystones:CollectMembers()
-    local members = {}
-
-    local function AddMember(unit)
-        if not UnitExists(unit) then
-            return
-        end
-
-        local name = UnitName(unit)
-        if not name then
-            return
-        end
-
-        members[#members + 1] = {
-            unit = unit,
-            name = name,
-            classFilename = self:GetUnitClassFilename(unit),
-        }
-    end
-
-    AddMember("player")
-
-    if IsInRaid() then
-        for i = 1, GetNumGroupMembers() do
-            local unit = "raid" .. i
-            if UnitExists(unit) and not UnitIsUnit(unit, "player") then
-                AddMember(unit)
-            end
-        end
-    elseif IsInGroup() then
-        for i = 1, GetNumSubgroupMembers() do
-            AddMember("party" .. i)
-        end
-    end
-
-    return members
-end
-
-function Keystones:GetPartyUnits()
-    local units = {}
-
-    if IsInRaid() then
-        for i = 1, GetNumGroupMembers() do
-            units[#units + 1] = "raid" .. i
-        end
-        return units
-    end
-
-    units[#units + 1] = "player"
-    if IsInGroup() then
-        for i = 1, GetNumSubgroupMembers() do
-            units[#units + 1] = "party" .. i
-        end
-    end
-
-    return units
-end
-
-function Keystones:FindPartyUnitForSender(sender)
-    local senderKeys = self:BuildLookupKeys(sender)
-    if #senderKeys == 0 then
+function Keystones:AsAccessibleNumber(value)
+    if not self:IsAccessible(value) then
         return nil
     end
 
-    local senderSet = {}
-    for _, key in ipairs(senderKeys) do
-        senderSet[key] = true
-    end
-
-    for _, unit in ipairs(self:GetPartyUnits()) do
-        local fullName = GetUnitName and GetUnitName(unit, true)
-        if self:IsAccessible(fullName) then
-            if senderSet[fullName] then
-                return unit
-            end
-            for _, key in ipairs(self:BuildLookupKeys(fullName)) do
-                if senderSet[key] then
-                    return unit
-                end
-            end
-        end
-
-        if UnitFullName then
-            local name, realm = UnitFullName(unit)
-            if self:IsAccessible(name) and self:IsAccessible(realm) and realm ~= "" then
-                local combined = name .. "-" .. realm
-                if senderSet[combined] then
-                    return unit
-                end
-                for _, key in ipairs(self:BuildLookupKeys(combined)) do
-                    if senderSet[key] then
-                        return unit
-                    end
-                end
-            end
-        end
-
-        local name = UnitName(unit)
-        if self:IsAccessible(name) then
-            for _, key in ipairs(self:BuildLookupKeys(name)) do
-                if senderSet[key] then
-                    return unit
-                end
-            end
-        end
-    end
-
-    return nil
+    return tonumber(value)
 end
+
+local Party = Key.Party
 
 function Keystones:RequestMapInfo()
     if C_MythicPlus and C_MythicPlus.RequestMapInfo then
@@ -168,7 +38,7 @@ function Keystones:GetDungeonName(mapID)
     end
     if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
         local name = C_ChallengeMode.GetMapUIInfo(mapID)
-        if name then
+        if name and self:IsAccessible(name) then
             return name
         end
     end
@@ -189,7 +59,9 @@ function Keystones:FindKeystoneInBags()
             if link and C_Item.IsItemKeystone and C_Item.IsItemKeystone(link) then
                 if C_ChallengeMode and C_ChallengeMode.GetKeystoneLevelAndMapID then
                     local level, mapID = C_ChallengeMode.GetKeystoneLevelAndMapID(link)
-                    if level and mapID and mapID ~= 0 then
+                    level = self:AsAccessibleNumber(level)
+                    mapID = self:AsAccessibleNumber(mapID)
+                    if level and level > 0 and mapID and mapID ~= 0 then
                         return {
                             level = level,
                             mapID = mapID,
@@ -204,6 +76,19 @@ function Keystones:FindKeystoneInBags()
     return nil
 end
 
+local function ReadMythicPlusValue(api)
+    if not api then
+        return nil
+    end
+
+    local ok, value = pcall(api)
+    if not ok then
+        return nil
+    end
+
+    return value
+end
+
 function Keystones:GetOwnKeystone()
     self:RequestMapInfo()
 
@@ -212,17 +97,20 @@ function Keystones:GetOwnKeystone()
 
     if C_MythicPlus then
         if C_MythicPlus.GetOwnedKeystoneLevel then
-            level = C_MythicPlus.GetOwnedKeystoneLevel()
+            level = ReadMythicPlusValue(C_MythicPlus.GetOwnedKeystoneLevel)
         end
         if C_MythicPlus.GetOwnedKeystoneChallengeMapID then
-            mapID = C_MythicPlus.GetOwnedKeystoneChallengeMapID()
+            mapID = ReadMythicPlusValue(C_MythicPlus.GetOwnedKeystoneChallengeMapID)
         end
         if (not mapID or mapID == 0) and C_MythicPlus.GetOwnedKeystoneMapID then
-            mapID = C_MythicPlus.GetOwnedKeystoneMapID()
+            mapID = ReadMythicPlusValue(C_MythicPlus.GetOwnedKeystoneMapID)
         end
     end
 
-    if (not level or level == 0 or not mapID or mapID == 0) then
+    level = self:AsAccessibleNumber(level)
+    mapID = self:AsAccessibleNumber(mapID)
+
+    if not level or level == 0 or not mapID or mapID == 0 then
         local bagKey = self:FindKeystoneInBags()
         if bagKey then
             return bagKey
@@ -238,12 +126,13 @@ function Keystones:GetOwnKeystone()
 end
 
 function Keystones:FormatKey(key)
-    if not key or not key.level or key.level == 0 then
+    local level = key and self:AsAccessibleNumber(key.level)
+    if not level or level == 0 then
         return "no key"
     end
 
     local name = key.dungeonName or self:GetDungeonName(key.mapID) or "Unknown"
-    return string.format("%s +%d", name, key.level)
+    return string.format("%s +%d", name, level)
 end
 
 function Keystones:LookupCachedKeyBySender(sender)
@@ -307,7 +196,7 @@ function Keystones:GetMemberKey(unitOrSender)
         end
 
         for sender, entry in pairs(Cache:GetPrimary(self:GetKeystoneStore())) do
-            local matchedUnit = self:FindPartyUnitForSender(sender)
+            local matchedUnit = Party:FindPartyUnitForSender(sender)
             if matchedUnit and UnitIsUnit(matchedUnit, unitOrSender) then
                 return entry
             end
@@ -315,7 +204,7 @@ function Keystones:GetMemberKey(unitOrSender)
 
         local keystoneStore = self:GetKeystoneStore()
         for sender, entry in pairs(keystoneStore.sessionPrimary) do
-            local matchedUnit = self:FindPartyUnitForSender(sender)
+            local matchedUnit = Party:FindPartyUnitForSender(sender)
             if matchedUnit and UnitIsUnit(matchedUnit, unitOrSender) then
                 return entry
             end
@@ -323,11 +212,6 @@ function Keystones:GetMemberKey(unitOrSender)
     end
 
     return nil
-end
-
-function Keystones:ClearSessionCaches()
-    Cache:WipeSession(self:GetKeystoneStore())
-    Cache:WipeSession(self:GetSeasonBestStore())
 end
 
 function Keystones:RestoreSessionCacheIfNeeded()
@@ -347,15 +231,26 @@ function Keystones:ClearPartyCache()
 end
 
 function Keystones:GetSeasonDungeons()
-    if Key.Teleports and Key.Teleports.SEASON_DUNGEONS then
-        return Key.Teleports.SEASON_DUNGEONS
+    if Key.PartyComplete and Key.PartyComplete.SEASON_DUNGEONS then
+        return Key.PartyComplete.SEASON_DUNGEONS
     end
     return {}
 end
 
 function Keystones:PickBestRun(intimeInfo)
-    local intimeLevel = intimeInfo and intimeInfo.level
-    if self:IsAccessible(intimeLevel) and intimeLevel > 0 then
+    if not intimeInfo then
+        return 0, false
+    end
+
+    local ok, intimeLevel = pcall(function()
+        return intimeInfo.level
+    end)
+    if not ok then
+        return 0, false
+    end
+
+    intimeLevel = self:AsAccessibleNumber(intimeLevel)
+    if intimeLevel and intimeLevel > 0 then
         return intimeLevel, false
     end
 
@@ -373,7 +268,11 @@ function Keystones:GetOwnBestForMap(challengeModeID)
         return 0, false
     end
 
-    local intimeInfo = C_MythicPlus.GetSeasonBestForMap(challengeModeID)
+    local ok, intimeInfo = pcall(C_MythicPlus.GetSeasonBestForMap, challengeModeID)
+    if not ok then
+        return 0, false
+    end
+
     return self:PickBestRun(intimeInfo)
 end
 
@@ -537,13 +436,15 @@ end
 function Keystones:GetPartyKeyTokensByMap()
     local byMap = {}
 
-    for _, unit in ipairs(self:GetPartyUnits()) do
+    for _, unit in ipairs(Party:GetPartyUnits()) do
         if UnitExists(unit) then
             local key = self:GetMemberKey(unit)
-            if key and key.level and key.level > 0 and key.mapID and key.mapID ~= 0 then
-                byMap[key.mapID] = byMap[key.mapID] or {}
-                byMap[key.mapID][#byMap[key.mapID] + 1] = {
-                    level = key.level,
+            local level = key and self:AsAccessibleNumber(key.level)
+            local mapID = key and self:AsAccessibleNumber(key.mapID)
+            if level and level > 0 and mapID and mapID ~= 0 then
+                byMap[mapID] = byMap[mapID] or {}
+                byMap[mapID][#byMap[mapID] + 1] = {
+                    level = level,
                     classFilename = self:GetUnitClassFilename(unit),
                     isLeader = self:IsUnitLeader(unit),
                     role = self:GetUnitRole(unit),

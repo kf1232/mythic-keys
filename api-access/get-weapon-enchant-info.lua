@@ -21,8 +21,3 @@ function API:GetInfo()
         enchantId = (hasMainHand and mainEnchantId) or offEnchantId,
     }
 end
-
-function API:GetActiveEnchantId()
-    local info = self:GetInfo()
-    return info and info.enchantId or nil
-end
