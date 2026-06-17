@@ -82,6 +82,7 @@ The teleport bar and bests table use the Midnight Season 1 M+ pool (8 dungeons).
 |------|------|
 | `Core.lua` | Event bus, slash commands, WoW event wiring |
 | `Log.lua` | Central log store and `WriteEvent` API |
+| `api-access/` | Blizzard API gateway (`Key.Api.*`) with secret-value middleware |
 | `cache/cache.lua` | Shared session cache and sender/GUID indexing |
 | `party/party.lua` | Group roster enumeration and sender identity |
 | `ui/ui.lua` | Shared frame/theme helpers |
@@ -128,7 +129,7 @@ Addon message prefix: `KeyF`
 
 ## Author
 
-KyleF — version 2026.0616.1
+KyleF — version 2026.0616.2
 
 ## Use policy
 

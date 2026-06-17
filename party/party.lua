@@ -3,27 +3,17 @@ local ADDON_NAME = ...
 Key.Party = Key.Party or {}
 local Party = Key.Party
 local Cache = Key.Cache
-
-local function GetUnitClassFilename(unit)
-    if not unit or not UnitExists(unit) or not UnitClass then
-        return nil
-    end
-
-    local _, classFilename = UnitClass(unit)
-    if Cache:IsAccessible(classFilename) then
-        return classFilename
-    end
-
-    return nil
-end
+local UnitAPI = Key.Api.Unit
+local GroupAPI = Key.Api.Group
+local StringsAPI = Key.Api.Strings
 
 local function GetMemberDisplayName(unit)
-    local name = UnitName(unit)
-    if Cache:IsAccessible(name) and name ~= "" then
+    local name = UnitAPI:GetName(false, unit)
+    if name then
         return name
     end
 
-    if UnitIsUnit(unit, "player") then
+    if UnitAPI:IsPlayer(false, unit) then
         return "You"
     end
 
@@ -34,7 +24,7 @@ function Party:NormalizeSender(sender)
     if not Cache:IsAccessible(sender) or sender == "" then
         return nil
     end
-    return Ambiguate(sender, "none")
+    return StringsAPI:Ambiguate(false, sender, "none")
 end
 
 function Party:BuildLookupKeys(name)
@@ -44,9 +34,9 @@ function Party:BuildLookupKeys(name)
 
     local keys = {
         name,
-        Ambiguate(name, "none"),
-        Ambiguate(name, "short"),
-        Ambiguate(name, "guild"),
+        StringsAPI:Ambiguate(false, name, "none"),
+        StringsAPI:Ambiguate(false, name, "short"),
+        StringsAPI:Ambiguate(false, name, "guild"),
     }
 
     local seen = {}
@@ -64,28 +54,28 @@ function Party:CollectMembers()
     local members = {}
 
     local function AddMember(unit)
-        if not UnitExists(unit) then
+        if not UnitAPI:Exists(false, unit) then
             return
         end
 
         members[#members + 1] = {
             unit = unit,
             name = GetMemberDisplayName(unit),
-            classFilename = GetUnitClassFilename(unit),
+            classFilename = UnitAPI:GetClassFilename(false, unit),
         }
     end
 
     AddMember("player")
 
-    if IsInRaid() then
-        for i = 1, GetNumGroupMembers() do
+    if GroupAPI:IsInRaid(false) then
+        for i = 1, GroupAPI:GetNumMembers(false) do
             local unit = "raid" .. i
-            if UnitExists(unit) and not UnitIsUnit(unit, "player") then
+            if UnitAPI:Exists(false, unit) and not UnitAPI:IsPlayer(false, unit) then
                 AddMember(unit)
             end
         end
-    elseif IsInGroup() then
-        for i = 1, GetNumSubgroupMembers() do
+    elseif GroupAPI:IsInGroup(false) then
+        for i = 1, GroupAPI:GetNumSubgroupMembers(false) do
             AddMember("party" .. i)
         end
     end
@@ -96,16 +86,16 @@ end
 function Party:GetPartyUnits()
     local units = {}
 
-    if IsInRaid() then
-        for i = 1, GetNumGroupMembers() do
+    if GroupAPI:IsInRaid(false) then
+        for i = 1, GroupAPI:GetNumMembers(false) do
             units[#units + 1] = "raid" .. i
         end
         return units
     end
 
     units[#units + 1] = "player"
-    if IsInGroup() then
-        for i = 1, GetNumSubgroupMembers() do
+    if GroupAPI:IsInGroup(false) then
+        for i = 1, GroupAPI:GetNumSubgroupMembers(false) do
             units[#units + 1] = "party" .. i
         end
     end
@@ -125,7 +115,7 @@ function Party:FindPartyUnitForSender(sender)
     end
 
     for _, unit in ipairs(self:GetPartyUnits()) do
-        local fullName = GetUnitName and GetUnitName(unit, true)
+        local fullName = UnitAPI:GetUnitName(false, unit, true)
         if Cache:IsAccessible(fullName) then
             if senderSet[fullName] then
                 return unit
@@ -137,24 +127,22 @@ function Party:FindPartyUnitForSender(sender)
             end
         end
 
-        if UnitFullName then
-            local name, realm = UnitFullName(unit)
-            if Cache:IsAccessible(name) and Cache:IsAccessible(realm) and realm ~= "" then
-                local combined = name .. "-" .. realm
-                if senderSet[combined] then
+        local name, realm = UnitAPI:GetFullName(false, unit)
+        if Cache:IsAccessible(name) and Cache:IsAccessible(realm) and realm ~= "" then
+            local combined = name .. "-" .. realm
+            if senderSet[combined] then
+                return unit
+            end
+            for _, key in ipairs(self:BuildLookupKeys(combined)) do
+                if senderSet[key] then
                     return unit
-                end
-                for _, key in ipairs(self:BuildLookupKeys(combined)) do
-                    if senderSet[key] then
-                        return unit
-                    end
                 end
             end
         end
 
-        local name = UnitName(unit)
-        if Cache:IsAccessible(name) then
-            for _, key in ipairs(self:BuildLookupKeys(name)) do
+        local unitName = UnitAPI:GetName(false, unit)
+        if Cache:IsAccessible(unitName) then
+            for _, key in ipairs(self:BuildLookupKeys(unitName)) do
                 if senderSet[key] then
                     return unit
                 end

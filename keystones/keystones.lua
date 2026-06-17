@@ -3,6 +3,12 @@ local ADDON_NAME = ...
 Key.Keystones = Key.Keystones or {}
 local Keystones = Key.Keystones
 local Cache = Key.Cache
+local Middleware = Key.Api.Middleware
+local UnitAPI = Key.Api.Unit
+local GroupAPI = Key.Api.Group
+local ChallengeMode = Key.Api.ChallengeMode
+local MythicPlus = Key.Api.MythicPlus
+local Container = Key.Api.Container
 
 function Keystones:GetKeystoneStore()
     return Cache:GetStore(Cache.STORE.KEYSTONE)
@@ -17,98 +23,49 @@ function Keystones:IsAccessible(value)
 end
 
 function Keystones:AsAccessibleNumber(value)
-    if not self:IsAccessible(value) then
-        return nil
-    end
-
-    return tonumber(value)
+    return Middleware:AsNumber(false, value)
 end
 
 local Party = Key.Party
 
 function Keystones:RequestMapInfo()
-    if C_MythicPlus and C_MythicPlus.RequestMapInfo then
-        C_MythicPlus.RequestMapInfo()
-    end
+    MythicPlus:RequestMapInfo(false)
 end
 
 function Keystones:GetDungeonName(mapID)
     if not mapID or mapID == 0 then
         return nil
     end
-    if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
-        local name = C_ChallengeMode.GetMapUIInfo(mapID)
-        if name and self:IsAccessible(name) then
-            return name
-        end
+
+    local name = ChallengeMode:GetMapName(false, mapID)
+    if name then
+        return name
     end
+
     return "Unknown"
 end
 
 function Keystones:FindKeystoneInBags()
-    if not C_Container or not C_Item then
+    local bagKey = Container:FindKeystoneInBags(false)
+    if not bagKey then
         return nil
     end
 
-    local numBags = NUM_BAG_SLOTS or 4
-    for bag = 0, numBags do
-        local numSlots = C_Container.GetContainerNumSlots(bag)
-        for slot = 1, numSlots do
-            local itemInfo = C_Container.GetContainerItemInfo(bag, slot)
-            local link = itemInfo and itemInfo.hyperlink
-            if link and C_Item.IsItemKeystone and C_Item.IsItemKeystone(link) then
-                if C_ChallengeMode and C_ChallengeMode.GetKeystoneLevelAndMapID then
-                    local level, mapID = C_ChallengeMode.GetKeystoneLevelAndMapID(link)
-                    level = self:AsAccessibleNumber(level)
-                    mapID = self:AsAccessibleNumber(mapID)
-                    if level and level > 0 and mapID and mapID ~= 0 then
-                        return {
-                            level = level,
-                            mapID = mapID,
-                            dungeonName = self:GetDungeonName(mapID),
-                        }
-                    end
-                end
-            end
-        end
-    end
-
-    return nil
-end
-
-local function ReadMythicPlusValue(api)
-    if not api then
-        return nil
-    end
-
-    local ok, value = pcall(api)
-    if not ok then
-        return nil
-    end
-
-    return value
+    return {
+        level = bagKey.level,
+        mapID = bagKey.mapID,
+        dungeonName = self:GetDungeonName(bagKey.mapID),
+    }
 end
 
 function Keystones:GetOwnKeystone()
     self:RequestMapInfo()
 
-    local level
-    local mapID
-
-    if C_MythicPlus then
-        if C_MythicPlus.GetOwnedKeystoneLevel then
-            level = ReadMythicPlusValue(C_MythicPlus.GetOwnedKeystoneLevel)
-        end
-        if C_MythicPlus.GetOwnedKeystoneChallengeMapID then
-            mapID = ReadMythicPlusValue(C_MythicPlus.GetOwnedKeystoneChallengeMapID)
-        end
-        if (not mapID or mapID == 0) and C_MythicPlus.GetOwnedKeystoneMapID then
-            mapID = ReadMythicPlusValue(C_MythicPlus.GetOwnedKeystoneMapID)
-        end
+    local level = MythicPlus:GetOwnedKeystoneLevel(false)
+    local mapID = MythicPlus:GetOwnedKeystoneChallengeMapID(false)
+    if (not mapID or mapID == 0) then
+        mapID = MythicPlus:GetOwnedKeystoneMapID(false)
     end
-
-    level = self:AsAccessibleNumber(level)
-    mapID = self:AsAccessibleNumber(mapID)
 
     if not level or level == 0 or not mapID or mapID == 0 then
         local bagKey = self:FindKeystoneInBags()
@@ -181,15 +138,15 @@ function Keystones:LookupCachedKey(unit)
 end
 
 function Keystones:GetMemberKey(unitOrSender)
-    if type(unitOrSender) == "string" and not UnitExists(unitOrSender) then
+    if type(unitOrSender) == "string" and not UnitAPI:Exists(false, unitOrSender) then
         return self:LookupCachedKeyBySender(unitOrSender)
     end
 
-    if unitOrSender and UnitExists(unitOrSender) and UnitIsUnit(unitOrSender, "player") then
+    if unitOrSender and UnitAPI:Exists(false, unitOrSender) and UnitAPI:IsPlayer(false, unitOrSender) then
         return self:GetOwnKeystone()
     end
 
-    if unitOrSender and UnitExists(unitOrSender) then
+    if unitOrSender and UnitAPI:Exists(false, unitOrSender) then
         local key = self:LookupCachedKey(unitOrSender)
         if key then
             return key
@@ -197,7 +154,7 @@ function Keystones:GetMemberKey(unitOrSender)
 
         for sender, entry in pairs(Cache:GetPrimary(self:GetKeystoneStore())) do
             local matchedUnit = Party:FindPartyUnitForSender(sender)
-            if matchedUnit and UnitIsUnit(matchedUnit, unitOrSender) then
+            if matchedUnit and UnitAPI:IsUnit(false, matchedUnit, unitOrSender) then
                 return entry
             end
         end
@@ -205,7 +162,7 @@ function Keystones:GetMemberKey(unitOrSender)
         local keystoneStore = self:GetKeystoneStore()
         for sender, entry in pairs(keystoneStore.sessionPrimary) do
             local matchedUnit = Party:FindPartyUnitForSender(sender)
-            if matchedUnit and UnitIsUnit(matchedUnit, unitOrSender) then
+            if matchedUnit and UnitAPI:IsUnit(false, matchedUnit, unitOrSender) then
                 return entry
             end
         end
@@ -242,14 +199,7 @@ function Keystones:PickBestRun(intimeInfo)
         return 0, false
     end
 
-    local ok, intimeLevel = pcall(function()
-        return intimeInfo.level
-    end)
-    if not ok then
-        return 0, false
-    end
-
-    intimeLevel = self:AsAccessibleNumber(intimeLevel)
+    local intimeLevel = self:AsAccessibleNumber(intimeInfo.level)
     if intimeLevel and intimeLevel > 0 then
         return intimeLevel, false
     end
@@ -264,15 +214,7 @@ function Keystones:GetOwnBestForMap(challengeModeID)
 
     self:RequestMapInfo()
 
-    if not C_MythicPlus or not C_MythicPlus.GetSeasonBestForMap then
-        return 0, false
-    end
-
-    local ok, intimeInfo = pcall(C_MythicPlus.GetSeasonBestForMap, challengeModeID)
-    if not ok then
-        return 0, false
-    end
-
+    local intimeInfo = MythicPlus:GetSeasonBestForMap(false, challengeModeID)
     return self:PickBestRun(intimeInfo)
 end
 
@@ -364,7 +306,7 @@ function Keystones:GetMemberBestForMap(unit, challengeModeID)
         return 0, false
     end
 
-    if UnitExists(unit) and UnitIsUnit(unit, "player") then
+    if UnitAPI:Exists(false, unit) and UnitAPI:IsPlayer(false, unit) then
         return self:GetOwnBestForMap(challengeModeID)
     end
 
@@ -390,54 +332,22 @@ function Keystones:GetClassColor(classFilename)
 end
 
 function Keystones:GetUnitClassFilename(unit)
-    if not unit or not UnitExists(unit) or not UnitClass then
-        return nil
-    end
-
-    local _, classFilename = UnitClass(unit)
-    if self:IsAccessible(classFilename) then
-        return classFilename
-    end
-
-    return nil
+    return UnitAPI:GetClassFilename(false, unit)
 end
 
 function Keystones:IsUnitLeader(unit)
-    if not unit or not UnitIsGroupLeader then
-        return false
-    end
-
-    local isLeader = UnitIsGroupLeader(unit)
-    if not self:IsAccessible(isLeader) then
-        return false
-    end
-
-    return isLeader and true or false
+    return UnitAPI:IsGroupLeader(false, unit)
 end
 
 function Keystones:GetUnitRole(unit)
-    if not unit or not UnitGroupRolesAssigned then
-        return nil
-    end
-
-    local role = UnitGroupRolesAssigned(unit)
-    if not self:IsAccessible(role) then
-        return nil
-    end
-
-    if role == "TANK" or role == "HEALER" or role == "DAMAGER" then
-        return role
-    end
-
-    return nil
+    return UnitAPI:GetGroupRole(false, unit)
 end
 
--- Keys are indexed by challenge map ID (same as Teleports.SEASON_DUNGEONS[].challengeModeID).
 function Keystones:GetPartyKeyTokensByMap()
     local byMap = {}
 
     for _, unit in ipairs(Party:GetPartyUnits()) do
-        if UnitExists(unit) then
+        if UnitAPI:Exists(false, unit) then
             local key = self:GetMemberKey(unit)
             local level = key and self:AsAccessibleNumber(key.level)
             local mapID = key and self:AsAccessibleNumber(key.mapID)
@@ -457,7 +367,7 @@ function Keystones:GetPartyKeyTokensByMap()
 end
 
 Key.RegisterTrigger("PLAYER_ENTERING_WORLD", function()
-    if IsInGroup() then
+    if GroupAPI:IsInGroup(false) then
         Keystones:RestoreSessionCacheIfNeeded()
     end
 end)

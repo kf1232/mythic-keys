@@ -3,6 +3,8 @@ local ADDON_NAME = ...
 Key.ReadyCheck = Key.ReadyCheck or {}
 local ReadyCheck = Key.ReadyCheck
 local Cache = Key.Cache
+local UnitAPI = Key.Api.Unit
+local TimerAPI = Key.Api.Timer
 
 ReadyCheck.targetZone = ReadyCheck.targetZone or nil
 ReadyCheck.lastPushedZone = ReadyCheck.lastPushedZone or nil
@@ -54,7 +56,7 @@ function ReadyCheck:GetZoneTargetPayloadPattern()
 end
 
 function ReadyCheck:GetPlayerZoneText()
-    return GetZoneText() or ""
+    return Key.Api.Zone:GetZoneText(false) or ""
 end
 
 function ReadyCheck:ZonesMatch(left, right)
@@ -111,7 +113,7 @@ function ReadyCheck:SetPartyZone(sender, zone)
 end
 
 function ReadyCheck:GetMemberZoneText(unit)
-    if UnitIsUnit(unit, "player") then
+    if UnitAPI:IsPlayer(false, unit) then
         return self:GetPlayerZoneText()
     end
 
@@ -210,7 +212,7 @@ end
 function ReadyCheck:OnZoneEvent()
     self:RefreshZoneDisplay()
 
-    local now = GetTime()
+    local now = TimerAPI:GetTime(false)
     if now < (self.zonePushNotBefore or 0) then
         return
     end
@@ -220,7 +222,7 @@ function ReadyCheck:OnZoneEvent()
 end
 
 function ReadyCheck:OnZoneTick()
-    self.zonePushNotBefore = GetTime() + self.ZONE_UPDATE_INTERVAL
+    self.zonePushNotBefore = TimerAPI:GetTime(false) + self.ZONE_UPDATE_INTERVAL
     self:MaybePushZoneChange()
     self:RefreshZoneDisplay()
 end
@@ -241,14 +243,14 @@ function ReadyCheck:InitZoneTracking()
     end)
     self.zoneEventFrame = frame
 
-    self.zoneTicker = C_Timer.NewTicker(self.ZONE_UPDATE_INTERVAL, function()
+    self.zoneTicker = TimerAPI:NewTicker(false, self.ZONE_UPDATE_INTERVAL, function()
         ReadyCheck:OnZoneTick()
     end)
 end
 
 function ReadyCheck:GetPlayerRepairPercent()
     if Key.Api.InventoryDurability and Key.Api.InventoryDurability.GetRepairPercent then
-        return Key.Api.InventoryDurability:GetRepairPercent()
+        return Key.Api.InventoryDurability:GetRepairPercent(false)
     end
     return 100
 end
@@ -262,7 +264,7 @@ function ReadyCheck:GetPartyBuffText(unit)
         return "—"
     end
 
-    local buffs = Key.Api.UnitAuras:GetSelfSourcedBuffNames(unit, "HELPFUL|RAID")
+    local buffs = Key.Api.UnitAuras:GetSelfSourcedBuffNames(false, unit, "HELPFUL|RAID")
     if not buffs or #buffs == 0 then
         return "—"
     end
@@ -396,7 +398,7 @@ function ReadyCheck:RebindCache()
 end
 
 function ReadyCheck:ApplyLiveConsumableStatus(status, unit, liveValues)
-    local isPlayer = UnitIsUnit(unit, "player")
+    local isPlayer = UnitAPI:IsPlayer(false, unit)
     local cached = (not isPlayer) and self:LookupCachedReady(unit) or nil
 
     for kindKey, fields in pairs(self.CONSUMABLE_STATUS_FIELDS) do
@@ -445,7 +447,7 @@ function ReadyCheck:GetMemberStatus(unit)
         flaskLowTime = false,
     }
 
-    if UnitIsUnit(unit, "player") then
+    if UnitAPI:IsPlayer(false, unit) then
         status.repair = self:GetPlayerRepairPercent()
         status.repairText = string.format("%d%%", status.repair)
     else

@@ -98,7 +98,11 @@ function Key.UI:DisplayText(value, fallback)
         return fallback
     end
 
-    if issecretvalue and issecretvalue(value) then
+    if Key.Api.Middleware and Key.Api.Middleware.IsAccessible then
+        if not Key.Api.Middleware:IsAccessible(value) then
+            return fallback
+        end
+    elseif issecretvalue and issecretvalue(value) then
         return fallback
     end
 

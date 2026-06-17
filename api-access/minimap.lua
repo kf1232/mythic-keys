@@ -2,6 +2,7 @@ local ADDON_NAME = ...
 
 Key.Api.Minimap = Key.Api.Minimap or {}
 local API = Key.Api.Minimap
+local Middleware = Key.Api.Middleware
 
 local MINIMAP_SHAPES = {
     ["ROUND"] = { true, true, true, true },
@@ -20,7 +21,26 @@ local MINIMAP_SHAPES = {
     ["TRICORNER-BOTTOMRIGHT"] = { true, true, true, false },
 }
 
-function API:GetOffsetForAngle(minimap, angleDegrees, buttonRadius)
+function API:GetShape(isSecret)
+    if Middleware:Guard(isSecret) then
+        return "ROUND"
+    end
+    if not GetMinimapShape then
+        return "ROUND"
+    end
+
+    local shape, secret = Middleware:Call(false, GetMinimapShape)
+    if secret or not Middleware:IsAccessible(shape) then
+        return "ROUND"
+    end
+
+    return shape
+end
+
+function API:GetOffsetForAngle(isSecret, minimap, angleDegrees, buttonRadius)
+    if Middleware:Guard(isSecret, minimap, angleDegrees, buttonRadius) then
+        return 0, 0
+    end
     if not minimap then
         return 0, 0
     end
@@ -34,7 +54,8 @@ function API:GetOffsetForAngle(minimap, angleDegrees, buttonRadius)
         q = q + 2
     end
 
-    local shape = (GetMinimapShape and GetMinimapShape()) or "ROUND"
+    local shape = self:GetShape(false)
+
     local quadTable = MINIMAP_SHAPES[shape] or MINIMAP_SHAPES["ROUND"]
     local w = (minimap:GetWidth() / 2) + (buttonRadius or 0)
     local h = (minimap:GetHeight() / 2) + (buttonRadius or 0)
@@ -48,17 +69,27 @@ function API:GetOffsetForAngle(minimap, angleDegrees, buttonRadius)
     return math.max(-w, math.min(x * diagRadiusW, w)), math.max(-h, math.min(y * diagRadiusH, h))
 end
 
-function API:GetAngleFromCursor(frame)
+function API:GetAngleFromCursor(isSecret, frame)
+    if Middleware:Guard(isSecret, frame) then
+        return 0
+    end
     if not frame then
         return 0
     end
 
     local centerX, centerY = frame:GetCenter()
-    if not centerX or not centerY then
+    if Middleware:CheckSecret(centerX, centerY) then
         return 0
     end
 
-    local cursorX, cursorY = GetCursorPosition()
+    local values, secret = Middleware:PCall(false, GetCursorPosition)
+    if secret or not values then
+        return 0
+    end
+
+    local cursorX = values[1]
+    local cursorY = values[2]
+
     local scale = frame:GetEffectiveScale()
     if scale and scale > 0 then
         cursorX = cursorX / scale

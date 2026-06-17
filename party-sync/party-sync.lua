@@ -2,6 +2,9 @@ local ADDON_NAME = ...
 
 Key.PartySync = Key.PartySync or {}
 local Sync = Key.PartySync
+local ChatAPI = Key.Api.Chat
+local GroupAPI = Key.Api.Group
+local TimerAPI = Key.Api.Timer
 
 Sync.PREFIX = "KeyF"
 Sync.rosterDebounce = 0.25
@@ -22,9 +25,7 @@ function Sync:Init()
         return
     end
 
-    if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
-        C_ChatInfo.RegisterAddonMessagePrefix(self.PREFIX)
-    end
+    ChatAPI:RegisterAddonMessagePrefix(false, self.PREFIX)
 
     local frame = CreateFrame("Frame")
     frame:RegisterEvent("CHAT_MSG_ADDON")
@@ -52,18 +53,15 @@ function Sync:Init()
 end
 
 function Sync:CanSend()
-    if not IsInGroup() then
+    if not GroupAPI:IsInGroup(false) then
         return false
     end
 
-    return C_ChatInfo and C_ChatInfo.SendAddonMessage
+    return true
 end
 
 function Sync:GetChannel()
-    if IsInRaid() then
-        return "RAID"
-    end
-    return "PARTY"
+    return GroupAPI:GetChannel(false)
 end
 
 function Sync:Send(message)
@@ -71,7 +69,7 @@ function Sync:Send(message)
         return false
     end
 
-    local ok = pcall(C_ChatInfo.SendAddonMessage, self.PREFIX, message, self:GetChannel())
+    local ok = ChatAPI:SendAddonMessage(false, self.PREFIX, message, self:GetChannel())
     if not ok then
         Key.Log:WriteEvent(
             Key.Log.FEATURE.PARTY_SYNC,
@@ -238,13 +236,13 @@ end
 function Sync:ScheduleFollowUpSync()
     self:CancelFollowUpSync()
 
-    if not IsInGroup() then
+    if not GroupAPI:IsInGroup(false) then
         return
     end
 
-    self.followUpTimer = C_Timer.NewTimer(self.followUpDelay, function()
+    self.followUpTimer = TimerAPI:NewTimer(false, self.followUpDelay, function()
         self.followUpTimer = nil
-        if not IsInGroup() then
+        if not GroupAPI:IsInGroup(false) then
             return
         end
 
@@ -254,7 +252,7 @@ function Sync:ScheduleFollowUpSync()
 end
 
 function Sync:OnPartyChanged()
-    if not IsInGroup() then
+    if not GroupAPI:IsInGroup(false) then
         self:CancelFollowUpSync()
         return
     end
@@ -287,14 +285,14 @@ function Sync:SchedulePartySync()
         self.rosterTimer:Cancel()
     end
 
-    self.rosterTimer = C_Timer.NewTimer(self.rosterDebounce, function()
+    self.rosterTimer = TimerAPI:NewTimer(false, self.rosterDebounce, function()
         self.rosterTimer = nil
         Key.Dispatch("PARTY_CHANGED")
     end)
 end
 
 function Sync:BootstrapIfGrouped()
-    if IsInGroup() then
+    if GroupAPI:IsInGroup(false) then
         self:SchedulePartySync()
     end
 end
@@ -396,7 +394,7 @@ Key.RegisterTrigger("CHAT_MSG_ADDON", function(ctx)
 end)
 
 Key.RegisterTrigger("PARTY_SYNC_SCHEDULE", function()
-    if IsInGroup() then
+    if GroupAPI:IsInGroup(false) then
         Sync:SchedulePartySync()
         return
     end
@@ -408,7 +406,7 @@ Key.RegisterTrigger("PARTY_CHANGED", function()
 end)
 
 Key.RegisterTrigger("UI_PANEL_OPEN", function()
-    if IsInGroup() then
+    if GroupAPI:IsInGroup(false) then
         Sync:OnPartyChanged()
     else
         Sync:PushAll(true)
@@ -416,7 +414,7 @@ Key.RegisterTrigger("UI_PANEL_OPEN", function()
 end)
 
 Key.RegisterTrigger("UI_REFRESH_CLICK", function()
-    if IsInGroup() then
+    if GroupAPI:IsInGroup(false) then
         Key.Dispatch("PARTY_CHANGED", { immediate = true })
         return
     end

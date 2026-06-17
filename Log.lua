@@ -103,6 +103,27 @@ local function NormalizeStatus(status)
     return status
 end
 
+local function IsSecretValue(value)
+    if Key.Api.Middleware and Key.Api.Middleware.IsSecret then
+        return Key.Api.Middleware:IsSecret(value)
+    end
+    return issecretvalue and issecretvalue(value) or false
+end
+
+local function IsAccessibleValue(value)
+    if Key.Api.Middleware and Key.Api.Middleware.IsAccessible then
+        return Key.Api.Middleware:IsAccessible(value)
+    end
+    return value ~= nil and not IsSecretValue(value)
+end
+
+local function Now()
+    if Key.Api.Timer and Key.Api.Timer.GetTime then
+        return Key.Api.Timer:GetTime(false)
+    end
+    return GetTime()
+end
+
 local function NormalizeFeatureCode(featureCode)
     if type(featureCode) ~= "string" or featureCode == "" then
         return Log.FEATURE.CORE
@@ -112,7 +133,7 @@ end
 
 local function AppendEntry(log, entry, dedupeKey, dedupeWindow)
     if dedupeKey then
-        local now = GetTime()
+        local now = Now()
         local lastAt = log.dedupeCache[dedupeKey]
         if lastAt and (now - lastAt) < (dedupeWindow or 2) then
             return
@@ -166,7 +187,7 @@ function Log:SafeValue(value)
     if value == nil then
         return nil
     end
-    if issecretvalue and issecretvalue(value) then
+    if IsSecretValue(value) then
         return "[secret]"
     end
     return tostring(value)
@@ -176,9 +197,9 @@ function Log:TryDisplayValue(value)
     if value == nil then
         return nil
     end
-    if issecretvalue and issecretvalue(value) then
+    if IsSecretValue(value) then
         local ok, result = pcall(string.format, "%s", value)
-        if ok and result and (not issecretvalue or not issecretvalue(result)) and result ~= "" then
+        if ok and result and IsAccessibleValue(result) and result ~= "" then
             return result
         end
         return "[secret]"
@@ -188,7 +209,7 @@ end
 
 function Log:ResolveSpellName(spellId, displayName)
     if Key.Api.Spell and Key.Api.Spell.GetSpellName then
-        return Key.Api.Spell:GetSpellName(spellId, displayName)
+        return Key.Api.Spell:GetSpellName(false, spellId, displayName)
     end
     return nil
 end
@@ -254,7 +275,7 @@ function Log:LogKeystone(sender, key)
         return
     end
 
-    local shortName = Ambiguate(sender, "short")
+    local shortName = Key.Api.Strings:Ambiguate(false, sender, "short") or sender
     local summary = self:FormatKeystone(key)
     self:WriteEvent(
         self.FEATURE.PARTY_SYNC,

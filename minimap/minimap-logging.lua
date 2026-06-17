@@ -34,14 +34,17 @@ function MinimapLog:GetAngle()
 end
 
 function MinimapLog:GetShape()
-    return (GetMinimapShape and GetMinimapShape()) or "ROUND"
+    if Key.Api.Minimap and Key.Api.Minimap.GetShape then
+        return Key.Api.Minimap:GetShape(false)
+    end
+    return "ROUND"
 end
 
 function MinimapLog:GetOffset()
     if not Key.Api.Minimap or not Key.Api.Minimap.GetOffsetForAngle or not Minimap then
         return 0, 0
     end
-    return Key.Api.Minimap:GetOffsetForAngle(Minimap, self:GetAngle(), BUTTON_RADIUS)
+    return Key.Api.Minimap:GetOffsetForAngle(false, Minimap, self:GetAngle(), BUTTON_RADIUS)
 end
 
 function MinimapLog:ShouldLog()

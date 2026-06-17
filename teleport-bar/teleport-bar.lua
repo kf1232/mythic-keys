@@ -66,11 +66,9 @@ function Teleports:GetGcdSpellId()
 end
 
 function Teleports:GetDungeonTexture(challengeModeID)
-    if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
-        local ok, _, _, _, texture = pcall(C_ChallengeMode.GetMapUIInfo, challengeModeID)
-        if ok and texture and (not issecretvalue or not issecretvalue(texture)) then
-            return texture
-        end
+    local texture = Key.Api.ChallengeMode:GetMapTexture(false, challengeModeID)
+    if texture then
+        return texture
     end
     return self:GetDefaultIcon()
 end
@@ -94,31 +92,30 @@ function Teleports:IsSpellKnown(spellID)
         return false
     end
 
-    if C_SpellBook and C_SpellBook.IsSpellInSpellBook then
-        if C_SpellBook.IsSpellInSpellBook(spellID) then
+    local SpellAPI = Key.Api.Spell
+    if SpellAPI:IsSpellInSpellBook(false, spellID) then
+        return true
+    end
+    if Enum and Enum.SpellBookSpellBank then
+        if SpellAPI:IsSpellInSpellBook(false, spellID, Enum.SpellBookSpellBank.Player) then
             return true
-        end
-        if Enum and Enum.SpellBookSpellBank then
-            if C_SpellBook.IsSpellInSpellBook(spellID, Enum.SpellBookSpellBank.Player) then
-                return true
-            end
         end
     end
 
-    return C_SpellBook and C_SpellBook.IsSpellKnown and C_SpellBook.IsSpellKnown(spellID)
+    return SpellAPI:IsSpellKnown(false, spellID)
 end
 
 function Teleports:GetSpellCooldownInfo(spellID)
-    if not spellID or not C_Spell or not C_Spell.GetSpellCooldown then
+    if not spellID then
         return nil
     end
 
-    local cooldown = C_Spell.GetSpellCooldown(spellID)
+    local cooldown = Key.Api.Spell:GetSpellCooldown(false, spellID)
     if not cooldown or cooldown.duration == 0 then
         return nil
     end
 
-    local gcd = C_Spell.GetSpellCooldown(self:GetGcdSpellId())
+    local gcd = Key.Api.Spell:GetSpellCooldown(false, self:GetGcdSpellId())
     if gcd and cooldown.duration == gcd.duration then
         return nil
     end
@@ -132,7 +129,7 @@ function Teleports:GetSpellCooldownRemaining(spellID)
         return 0
     end
 
-    return math.max(0, startTime + duration - GetTime())
+    return math.max(0, startTime + duration - Key.Api.Timer:GetTime(false))
 end
 
 function Teleports:HandleTeleportClick(spellID)
@@ -140,7 +137,7 @@ function Teleports:HandleTeleportClick(spellID)
         return
     end
 
-    local now = GetTime()
+    local now = Key.Api.Timer:GetTime(false)
     if self.lastClickSpellID == spellID and self.lastClickTime and (now - self.lastClickTime) < 0.1 then
         return
     end
@@ -308,7 +305,7 @@ function Teleports:SetClassIcon(texture, classFilename)
         return false
     end
 
-    if issecretvalue and issecretvalue(classFilename) then
+    if Key.Api.Middleware:Guard(false, classFilename) then
         return false
     end
 
@@ -631,7 +628,7 @@ function Teleports:SetCooldownTicker(active)
             return
         end
 
-        self.cooldownTicker = C_Timer.NewTicker(self.COOLDOWN_TICK_INTERVAL, function()
+        self.cooldownTicker = Key.Api.Timer:NewTicker(false, self.COOLDOWN_TICK_INTERVAL, function()
             Teleports:RefreshCooldownUI()
         end)
         return
@@ -868,7 +865,7 @@ function Teleports:InitEvents()
                 end
 
                 local spellID = Teleports.lastClickSpellID
-                local clickAge = GetTime() - (Teleports.lastClickTime or 0)
+                local clickAge = Key.Api.Timer:GetTime(false) - (Teleports.lastClickTime or 0)
                 if not spellID or clickAge > 1 or not Teleports:IsSeasonTeleport(spellID) then
                     return
                 end

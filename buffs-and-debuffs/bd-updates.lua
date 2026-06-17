@@ -2,6 +2,10 @@ local ADDON_NAME = ...
 
 Key.BDUpdates = Key.BDUpdates or {}
 local Updates = Key.BDUpdates
+local Middleware = Key.Api.Middleware
+local UnitAPI = Key.Api.Unit
+local GroupAPI = Key.Api.Group
+local TimerAPI = Key.Api.Timer
 
 Updates.POLL_INTERVAL = 5
 Updates.auraFrame = Updates.auraFrame or CreateFrame("Frame")
@@ -104,7 +108,7 @@ local function FingerprintValue(value, fallback)
         return fallback or ""
     end
 
-    if issecretvalue and issecretvalue(value) then
+    if Middleware:IsSecret(value) then
         return fallback or ""
     end
 
@@ -158,7 +162,7 @@ function Updates:ScheduleConsumablePoll()
         return
     end
 
-    self.consumablePollTimer = C_Timer.After(0, function()
+    self.consumablePollTimer = TimerAPI:After(false, 0, function()
         self.consumablePollTimer = nil
         RunProtected("Key.BDUpdates:PollConsumableChanges", function()
             self:PollConsumableChanges()
@@ -180,7 +184,7 @@ function Updates:ScheduleReadyOnlyRefresh(reason)
         return
     end
 
-    self.readyRefreshTimer = C_Timer.After(0, function()
+    self.readyRefreshTimer = TimerAPI:After(false, 0, function()
         self.readyRefreshTimer = nil
         self:RefreshReadyConsumables(true, reason)
     end)
@@ -203,17 +207,17 @@ end
 function Updates:CollectAuraUnits()
     local units = { "player" }
 
-    if IsInRaid() then
-        for index = 1, GetNumGroupMembers() do
+    if GroupAPI:IsInRaid(false) then
+        for index = 1, GroupAPI:GetNumMembers(false) do
             local unit = "raid" .. index
-            if UnitExists(unit) then
+            if UnitAPI:Exists(false, unit) then
                 units[#units + 1] = unit
             end
         end
-    elseif IsInGroup() then
-        for index = 1, GetNumSubgroupMembers() do
+    elseif GroupAPI:IsInGroup(false) then
+        for index = 1, GroupAPI:GetNumSubgroupMembers(false) do
             local unit = "party" .. index
-            if UnitExists(unit) then
+            if UnitAPI:Exists(false, unit) then
                 units[#units + 1] = unit
             end
         end
@@ -297,7 +301,7 @@ function Updates:HasActiveFlaskTimer()
         if not ready then
             return false, false
         end
-        if issecretvalue and issecretvalue(remaining) then
+        if Middleware:IsSecret(remaining) then
             return true, false
         end
         if remaining == nil then
@@ -336,7 +340,7 @@ function Updates:UpdatePolling()
     if self:ShouldRunPollTicker() then
         if not self.pollTicker then
             self.lastFingerprint = self:GetConsumableFingerprint()
-            self.pollTicker = C_Timer.NewTicker(self.POLL_INTERVAL, function()
+            self.pollTicker = TimerAPI:NewTicker(false, self.POLL_INTERVAL, function()
                 if IsInCombat() then
                     return
                 end

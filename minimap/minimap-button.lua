@@ -29,7 +29,7 @@ local function SetAngle(angle)
 end
 
 local function UpdatePosition(button)
-    local x, y = Key.Api.Minimap:GetOffsetForAngle(Minimap, GetAngle(), BUTTON_RADIUS)
+    local x, y = Key.Api.Minimap:GetOffsetForAngle(false, Minimap, GetAngle(), BUTTON_RADIUS)
     button:ClearAllPoints()
     button:SetPoint("CENTER", Minimap, "CENTER", x, y)
 end
@@ -97,7 +97,7 @@ function MinimapButton:CreateButton()
             Key.MinimapLog:LogDragStart()
         end
         self:SetScript("OnUpdate", function()
-            SetAngle(Key.Api.Minimap:GetAngleFromCursor(Minimap))
+            SetAngle(Key.Api.Minimap:GetAngleFromCursor(false, Minimap))
             UpdatePosition(self)
         end)
     end)

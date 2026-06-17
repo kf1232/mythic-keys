@@ -1,8 +1,8 @@
-## Interface: 120005
+## Interface: 120007
 ## Title: Key
 ## Notes: Party list for Mythic+ groups. Type /keyf to open.
 ## Author: MasFink
-## Version: 2026.0616.1
+## Version: 2026.0616.2
 ## IconTexture: Interface\AddOns\mythic-keys\media\icon
 ## OptionalDeps: DBM-Core, Details
 ## SavedVariables: KeyDB
@@ -11,13 +11,22 @@
 # Keep shared load order in sync with mythic-keys.toc when adding or moving files.
 
 Log.lua
-cache\cache.lua
-party\party.lua
+api-access\middleware.lua
+api-access\unit.lua
+api-access\zone.lua
+api-access\strings.lua
+api-access\challenge-mode.lua
+api-access\mythic-plus.lua
+api-access\container.lua
+api-access\chat.lua
+api-access\timer.lua
 api-access\c-spell.lua
 api-access\c-unit-auras.lua
 api-access\get-weapon-enchant-info.lua
 api-access\get-inventory-item-durability.lua
 api-access\minimap.lua
+cache\cache.lua
+party\party.lua
 ui\ui.lua
 keystones\keystones.lua
 buffs-and-debuffs\bd-midnight-data.lua

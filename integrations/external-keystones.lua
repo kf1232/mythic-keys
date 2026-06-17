@@ -17,7 +17,7 @@ function External:NormalizeSender(sender)
     if not Key.Cache or not Key.Cache:IsAccessible(sender) or sender == "" then
         return nil
     end
-    return Ambiguate(sender, "none")
+    return Key.Api.Strings:Ambiguate(false, sender, "none")
 end
 
 function External:ApplyPartyKey(sender, level, mapID)

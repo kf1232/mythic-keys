@@ -25,7 +25,7 @@ function DebugData:ShortName(sender)
     if not sender or sender == "" then
         return "?"
     end
-    return Ambiguate(sender, "short")
+    return Key.Api.Strings:Ambiguate(false, sender, "short") or "?"
 end
 
 function DebugData:FormatBestSummary(bests)
@@ -69,12 +69,12 @@ function DebugData:FormatReadySummary(entry)
 end
 
 function DebugData:GetGroupSummary()
-    if IsInRaid() then
-        return string.format("raid (%d)", GetNumGroupMembers())
+    if Key.Api.Group:IsInRaid(false) then
+        return string.format("raid (%d)", Key.Api.Group:GetNumMembers(false))
     end
 
-    if IsInGroup() then
-        return string.format("party (%d)", 1 + GetNumSubgroupMembers())
+    if Key.Api.Group:IsInGroup(false) then
+        return string.format("party (%d)", 1 + Key.Api.Group:GetNumSubgroupMembers(false))
     end
 
     return "solo"

@@ -2,10 +2,19 @@
 
 ## Summary
 
-Isolated reads from Blizzard APIs used across Key. Keeps spell, aura, durability, weapon-enchant, and minimap geometry access in one place so UI modules get consistent values without duplicating API quirks (including secret-value restrictions on retail).
+Single gateway for all Blizzard API reads and writes used by Key. Every module outside this folder must call `Key.Api.*` helpers — never `C_*`, `Unit*`, `Get*`, `IsInGroup`, `C_Timer`, or `Ambiguate` directly. All helpers route through `Key.Api.Middleware` for secret-value guards and scan short-circuit.
 
 ## Namespace
 
+- `Key.Api.Middleware` — `middleware.lua` (see `middleware.spec.md`)
+- `Key.Api.Unit` / `Key.Api.Group` — `unit.lua`
+- `Key.Api.Zone` — `zone.lua`
+- `Key.Api.Strings` — `strings.lua`
+- `Key.Api.ChallengeMode` — `challenge-mode.lua`
+- `Key.Api.MythicPlus` — `mythic-plus.lua`
+- `Key.Api.Container` — `container.lua`
+- `Key.Api.Chat` — `chat.lua`
+- `Key.Api.Timer` — `timer.lua`
 - `Key.Api.Spell` — `c-spell.lua`
 - `Key.Api.UnitAuras` — `c-unit-auras.lua`
 - `Key.Api.WeaponEnchant` — `get-weapon-enchant-info.lua`
@@ -16,23 +25,46 @@ Isolated reads from Blizzard APIs used across Key. Keeps spell, aura, durability
 
 | File | Role |
 |------|------|
-| `c-spell.lua` | Spell info and icon resolution |
-| `c-unit-auras.lua` | Aura scans, readable fields, self-sourced buff names |
+| `middleware.lua` | Secret gatekeeper: `Guard`, `Call`, `PCall`, `AsNumber` |
+| `middleware.spec.md` | Data access instructions and limitations |
+| `unit.lua` | Unit identity, class, role, leader; group roster (`Group`) |
+| `zone.lua` | Zone text |
+| `strings.lua` | `Ambiguate` |
+| `challenge-mode.lua` | Dungeon map UI info, keystone item parsing |
+| `mythic-plus.lua` | Owned keystone, season bests, map info request |
+| `container.lua` | Bag scans, keystone item detection |
+| `chat.lua` | Addon message prefix registration and send |
+| `timer.lua` | `GetTime`, `After`, `NewTicker`, `NewTimer` |
+| `c-spell.lua` | Spell info, icons, spellbook, cooldowns |
+| `c-unit-auras.lua` | Aura scans (short-circuit on secret) |
 | `get-weapon-enchant-info.lua` | Temporary weapon enchant state |
-| `get-inventory-item-durability.lua` | Average repair percent |
-| `minimap.lua` | Minimap edge positioning math |
+| `get-inventory-item-durability.lua` | Gear repair percent |
+| `minimap.lua` | Minimap shape, edge positioning, cursor angle |
 
 ## Depends on (TOC order)
 
-- `Log.lua`, `cache/cache.lua`
+- `Log.lua` (must load first)
+- Full `api-access/` block loads before `cache/`, `party/`, and all feature modules
 
-## Public API
+## Public API convention
 
-- **Spell:** `GetSpellInfo(spellId)`, `GetIcon(spellId)`, `GetSpellName(spellId)`, `ResolveIcon(spellId)`
-- **Auras:** `Scan(unit, filter, callback)`, `Collect(unit, filter)`, `GetSelfSourcedBuffNames(unit, filter)` — returns readable names of `HELPFUL|RAID` auras on `unit` whose `sourceUnit` is the same unit (self-sourced buffs on that member, not buffs the local player cast on them)
-- **Durability:** `GetRepairPercent()` — player gear average 0–100%
-- **Weapon enchant:** `GetInfo()` — active oil/enchant metadata
-- **Minimap:** `GetOffsetForAngle(minimap, angle, radius)`, `GetAngleFromCursor(minimap)`
+Every method takes a leading **`isSecret`** boolean (`true` = abort immediately; pass `false` when unknown). Middleware also checks live `issecretvalue` on inputs and outputs.
+
+- **Middleware:** `IsSecret`, `IsAccessible`, `CheckSecret`, `Guard`, `Call`, `PCall`, `AsNumber`
+- **Unit:** `Exists`, `IsUnit`, `IsPlayer`, `GetGUID`, `GetName`, `GetFullName`, `GetUnitName`, `GetClass`, `GetClassFilename`, `IsGroupLeader`, `GetGroupRole`
+- **Group:** `IsInGroup`, `IsInRaid`, `GetNumMembers`, `GetNumSubgroupMembers`, `GetChannel`
+- **Zone:** `GetZoneText`
+- **Strings:** `Ambiguate`
+- **ChallengeMode:** `GetMapUIInfo`, `GetMapName`, `GetMapTexture`, `GetKeystoneLevelAndMapID`
+- **MythicPlus:** `RequestMapInfo`, `GetOwnedKeystoneLevel`, `GetOwnedKeystoneChallengeMapID`, `GetOwnedKeystoneMapID`, `GetSeasonBestForMap`
+- **Container:** `GetContainerNumSlots`, `GetContainerItemInfo`, `IsItemKeystone`, `FindKeystoneInBags`
+- **Chat:** `RegisterAddonMessagePrefix`, `SendAddonMessage`
+- **Timer:** `GetTime`, `After`, `NewTicker`, `NewTimer`
+- **Spell:** `GetSpellInfo`, `GetIcon`, `GetSpellName`, `ResolveIcon`, `IsSpellInSpellBook`, `IsSpellKnown`, `GetSpellCooldown`
+- **Auras:** `Scan`, `Collect`, `GetSelfSourcedBuffNames` — scans exit on first secret aura field
+- **Durability:** `GetSlotDurability`, `GetRepairPercent`
+- **Weapon enchant:** `GetInfo`
+- **Minimap:** `GetShape`, `GetOffsetForAngle`, `GetAngleFromCursor`
 
 ## Triggers
 
@@ -40,12 +72,7 @@ None.
 
 ## Output / Actions
 
-- **Spell icons and names** — artwork and display names for consumable rows, tooltips, and logs
-- **Unit aura scans** — merged buff/debuff lists per unit, including readable fields when the raw API hides values
-- **Party buff labels (Ready tab)** — comma-separated names from `GetSelfSourcedBuffNames`: raid-category buffs on a member where `UnitIsUnit(aura.sourceUnit, unit)` (buffs that member applied to themselves). Does not list buffs the local player cast onto other party members.
-- **Gear repair percent** — single 0–100% durability figure for the Ready tab repair column
-- **Weapon oil/enchant state** — whether a temporary weapon enchant is active and which enchant applies
-- **Minimap orbit positions** — screen offsets that keep a button on the minimap edge for round, square, and shaped minimap skins
+All Blizzard data consumed by keystones, party sync, ready check, teleports, buffs/debuffs, cache, and UI flows through these helpers.
 
 ## Logging
 

@@ -73,10 +73,11 @@ function Provider:ImportPartyCache(host)
     end
 
     for _, unit in ipairs(Key.Party:GetPartyUnits()) do
-        if unit ~= "player" and UnitExists(unit) then
+        if unit ~= "player" and Key.Api.Unit:Exists(false, unit) then
             local ok, keystoneInfo = pcall(host.openRaid.GetKeystoneInfo, unit)
             if ok and keystoneInfo then
-                self:OnKeystoneUpdate(host, GetUnitName(unit, true) or UnitName(unit), keystoneInfo)
+                local unitName = Key.Api.Unit:GetUnitName(false, unit, true) or Key.Api.Unit:GetName(false, unit)
+                self:OnKeystoneUpdate(host, unitName, keystoneInfo)
             end
         end
     end

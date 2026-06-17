@@ -2,6 +2,9 @@ local ADDON_NAME = ...
 
 Key.AurasLog = Key.AurasLog or {}
 local AurasLog = Key.AurasLog
+local UnitAPI = Key.Api.Unit
+local TimerAPI = Key.Api.Timer
+local Middleware = Key.Api.Middleware
 
 AurasLog.auraLogThrottle = AurasLog.auraLogThrottle or {}
 AurasLog.updateLogThrottle = AurasLog.updateLogThrottle or {}
@@ -66,7 +69,7 @@ function AurasLog:GetAuraName(aura, rawAura)
     for _, source in ipairs({ merged, rawAura, aura }) do
         if source and source.name then
             local name = keyLog:TryDisplayValue(source.name)
-            if name and (not issecretvalue or not issecretvalue(name)) and name ~= "[secret]" then
+            if name and Middleware:IsAccessible(name) and name ~= "[secret]" then
                 return name
             end
         end
@@ -83,14 +86,14 @@ function AurasLog:FormatAuraRemaining(merged)
     if not merged or not merged.expirationTime then
         return nil
     end
-    if issecretvalue and issecretvalue(merged.expirationTime) then
+    if Middleware:IsSecret(merged.expirationTime) then
         return nil
     end
     if merged.expirationTime <= 0 then
         return nil
     end
 
-    local remaining = merged.expirationTime - GetTime()
+    local remaining = merged.expirationTime - TimerAPI:GetTime(false)
     if remaining <= 0 then
         return nil
     end
@@ -111,7 +114,7 @@ function AurasLog:GetAuraStacks(aura, rawAura)
     for _, source in ipairs({ aura, rawAura }) do
         if source then
             local stacks = source.applications or source.count or source.charges
-            if stacks and (not issecretvalue or not issecretvalue(stacks)) and stacks > 1 then
+            if stacks and Middleware:IsAccessible(stacks) and stacks > 1 then
                 return keyLog:TryDisplayValue(stacks)
             end
         end
@@ -143,7 +146,7 @@ function AurasLog:GetAuraMatchHint(aura, rawAura)
     if not merged or not merged.spellId then
         return nil
     end
-    if issecretvalue and issecretvalue(merged.spellId) then
+    if Middleware:IsSecret(merged.spellId) then
         return nil
     end
 
@@ -259,7 +262,7 @@ function AurasLog:CollectAuras(unit, filter)
         return {}
     end
 
-    return Key.Api.UnitAuras:Collect(unit, filter, function(readableAura, rawAura)
+    return Key.Api.UnitAuras:Collect(false, unit, filter, function(readableAura, rawAura)
         return auras:MergeAuraSources(readableAura, rawAura)
     end)
 end
@@ -281,7 +284,7 @@ function AurasLog:GetConsumableDiagnostics(unit)
         weaponOil = nil,
     }
 
-    if not auras or not unit or not UnitExists(unit) then
+    if not auras or not unit or not UnitAPI:Exists(false, unit) then
         return diagnostics
     end
 
@@ -317,7 +320,7 @@ function AurasLog:GetConsumableDiagnostics(unit)
     auras:ScanAuras(unit, "HELPFUL", function(aura, rawAura, index)
         local merged = auras:MergeAuraSources(aura, rawAura)
         local spellId = merged and merged.spellId
-        local accessibleSpellId = spellId and (not issecretvalue or not issecretvalue(spellId)) and spellId or nil
+        local accessibleSpellId = spellId and Middleware:IsAccessible(spellId) and spellId or nil
         local knownFlask = accessibleSpellId and auras:GetKnownFlaskEntry(accessibleSpellId)
         local knownOil = accessibleSpellId and auras:GetKnownOilEntry(accessibleSpellId)
         local knownPhial = accessibleSpellId and auras:GetKnownPhialEntry(accessibleSpellId)
@@ -336,10 +339,10 @@ function AurasLog:GetConsumableDiagnostics(unit)
         }
     end)
 
-    if UnitIsUnit(unit, "player") and Key.Api.WeaponEnchant and Key.Api.WeaponEnchant.GetInfo then
-        local weaponEnchant = Key.Api.WeaponEnchant:GetInfo()
+    if UnitAPI:IsPlayer(false, unit) and Key.Api.WeaponEnchant and Key.Api.WeaponEnchant.GetInfo then
+        local weaponEnchant = Key.Api.WeaponEnchant:GetInfo(false)
         local enchantId = weaponEnchant and weaponEnchant.enchantId
-        local accessibleEnchantId = enchantId and (not issecretvalue or not issecretvalue(enchantId)) and enchantId or nil
+        local accessibleEnchantId = enchantId and Middleware:IsAccessible(enchantId) and enchantId or nil
         local knownOil = accessibleEnchantId and auras:GetKnownOilEntry(accessibleEnchantId)
 
         diagnostics.weaponOil = {
@@ -355,7 +358,7 @@ function AurasLog:GetConsumableDiagnostics(unit)
 end
 
 function AurasLog:ShouldLogAuras(unit)
-    local now = GetTime()
+    local now = TimerAPI:GetTime(false)
     local nextAt = self.auraLogThrottle[unit] or 0
     if now < nextAt then
         return false
@@ -396,7 +399,7 @@ function AurasLog:LogUpdateConsumableState(unit, reason)
     end
 
     local food, _, flaskReady, _, oil, _, _, _, _, flaskIcon = auras:GetConsumableStatus(unit)
-    local unitLabel = keyLog:SafeValue(UnitName(unit)) or unit
+    local unitLabel = keyLog:SafeValue(UnitAPI:GetName(false, unit)) or unit
 
     self:LogUpdate(string.format(
         "[%s] %s — food=%s flask=%s oil=%s",
@@ -491,7 +494,7 @@ function AurasLog:LogConsumableDiagnostics(unit)
     end
 
     unit = unit or "player"
-    local unitLabel = keyLog:SafeValue(UnitName(unit)) or unit
+    local unitLabel = keyLog:SafeValue(UnitAPI:GetName(false, unit)) or unit
     local diagnostics = self:GetConsumableDiagnostics(unit)
 
     Write(Key.Log.STATUS.DEBUG, string.format("--- Consumable diagnostics (%s) ---", unitLabel))
@@ -543,7 +546,7 @@ function AurasLog:LogConsumableDiagnostics(unit)
         Write(Key.Log.STATUS.DEBUG, "Flask quality tiers: " .. table.concat(tierParts, ", "))
     end
 
-    if not UnitExists(unit) then
+    if not UnitAPI:Exists(false, unit) then
         Write(Key.Log.STATUS.DEBUG, "Runtime: unit does not exist")
         Write(Key.Log.STATUS.DEBUG, "--- end consumable diagnostics ---")
         return
@@ -616,13 +619,13 @@ end
 
 function AurasLog:LogUnitAuras(unit, reason)
     local keyLog = Log()
-    if not keyLog or not unit or not UnitExists(unit) then
+    if not keyLog or not unit or not UnitAPI:Exists(false, unit) then
         return
     end
 
     local buffs = self:CollectAuras(unit, "HELPFUL")
     local debuffs = self:CollectAuras(unit, "HARMFUL")
-    local unitLabel = keyLog:SafeValue(UnitName(unit)) or unit
+    local unitLabel = keyLog:SafeValue(UnitAPI:GetName(false, unit)) or unit
 
     Write(Key.Log.STATUS.DEBUG, string.format(
         "%s %s — %d buff(s), %d debuff(s)",

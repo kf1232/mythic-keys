@@ -60,7 +60,7 @@ Key.RegisterTrigger("REFRESH_UI", function(ctx)
 
     pendingRefreshCtx = MergeRefreshContext(pendingRefreshCtx, ctx)
     CancelRefreshSchedule()
-    refreshTimer = C_Timer.NewTimer(Key.refreshDebounce, function()
+    refreshTimer = Key.Api.Timer:NewTimer(false, Key.refreshDebounce, function())
         refreshTimer = nil
         local pending = pendingRefreshCtx
         pendingRefreshCtx = nil

@@ -138,11 +138,11 @@ function PartyUI:CreateResizeHandle(frame)
 end
 
 function PartyUI:IsRefreshLocked()
-    return GetTime() < (self.refreshLockUntil or 0)
+    return Key.Api.Timer:GetTime(false) < (self.refreshLockUntil or 0)
 end
 
 function PartyUI:GetRefreshCooldownRemaining()
-    return math.max(0, (self.refreshLockUntil or 0) - GetTime())
+    return math.max(0, (self.refreshLockUntil or 0) - Key.Api.Timer:GetTime(false))
 end
 
 function PartyUI:UpdateRefreshButton()
@@ -228,7 +228,7 @@ function PartyUI:OnRefreshClick()
         return
     end
 
-    self.refreshLockUntil = GetTime() + self.REFRESH_COOLDOWN
+    self.refreshLockUntil = Key.Api.Timer:GetTime(false) + self.REFRESH_COOLDOWN
     self:UpdateRefreshButton()
 
     if Key.Log and Key.Log.RunProtected then
@@ -243,7 +243,7 @@ function PartyUI:OnRefreshClick()
         self.refreshUnlockTimer:Cancel()
     end
 
-    self.refreshUnlockTimer = C_Timer.NewTimer(self.REFRESH_COOLDOWN, function()
+    self.refreshUnlockTimer = Key.Api.Timer:NewTimer(false, self.REFRESH_COOLDOWN, function()
         self.refreshUnlockTimer = nil
         self:UpdateRefreshButton()
     end)

@@ -12,6 +12,9 @@ Cache.STORE = {
 Cache.stores = Cache.stores or {}
 
 function Cache:IsAccessible(value)
+    if Key.Api.Middleware and Key.Api.Middleware.IsAccessible then
+        return Key.Api.Middleware:IsAccessible(value)
+    end
     return value ~= nil and (not issecretvalue or not issecretvalue(value))
 end
 
@@ -74,7 +77,7 @@ function Cache:MirrorEntryToSession(store, sender, entry)
 
     local unit = self:FindPartyUnitForSender(sender)
     if unit then
-        local guid = UnitGUID(unit)
+        local guid = Key.Api.Unit:GetGUID(false, unit)
         if self:IsAccessible(guid) then
             store.sessionByGUID[guid] = entry
             return
@@ -125,7 +128,7 @@ function Cache:Write(store, sender, entry)
 
     local unit = self:FindPartyUnitForSender(sender)
     if unit then
-        local guid = UnitGUID(unit)
+        local guid = Key.Api.Unit:GetGUID(false, unit)
         if self:IsAccessible(guid) then
             store.byGUID[guid] = entry
         end
@@ -149,7 +152,7 @@ function Cache:Clear(store, sender)
 
     local unit = self:FindPartyUnitForSender(sender)
     if unit then
-        local guid = UnitGUID(unit)
+        local guid = Key.Api.Unit:GetGUID(false, unit)
         if self:IsAccessible(guid) then
             store.byGUID[guid] = nil
         end
@@ -195,12 +198,12 @@ function Cache:ReadByUnit(store, unit, includeSession)
         return nil
     end
 
-    local guid = UnitGUID(unit)
+    local guid = Key.Api.Unit:GetGUID(false, unit)
     if self:IsAccessible(guid) and store.byGUID[guid] then
         return store.byGUID[guid]
     end
 
-    local fullName = GetUnitName and GetUnitName(unit, true)
+    local fullName = Key.Api.Unit:GetUnitName(false, unit, true)
     if self:IsAccessible(fullName) then
         for _, key in ipairs(self:BuildLookupKeys(fullName)) do
             if store.byName[key] then
@@ -209,18 +212,16 @@ function Cache:ReadByUnit(store, unit, includeSession)
         end
     end
 
-    if UnitFullName then
-        local name, realm = UnitFullName(unit)
-        if self:IsAccessible(name) and self:IsAccessible(realm) and realm ~= "" then
-            for _, key in ipairs(self:BuildLookupKeys(name .. "-" .. realm)) do
-                if store.byName[key] then
-                    return store.byName[key]
-                end
+    local fullUnitName, realm = Key.Api.Unit:GetFullName(false, unit)
+    if self:IsAccessible(fullUnitName) and self:IsAccessible(realm) and realm ~= "" then
+        for _, key in ipairs(self:BuildLookupKeys(fullUnitName .. "-" .. realm)) do
+            if store.byName[key] then
+                return store.byName[key]
             end
         end
     end
 
-    local name = UnitName(unit)
+    local name = Key.Api.Unit:GetName(false, unit)
     if self:IsAccessible(name) then
         for _, key in ipairs(self:BuildLookupKeys(name)) do
             if store.byName[key] then
@@ -245,13 +246,10 @@ function Cache:ReadByUnit(store, unit, includeSession)
         end
     end
 
-    if UnitFullName then
-        local unitName, realm = UnitFullName(unit)
-        if self:IsAccessible(unitName) and self:IsAccessible(realm) and realm ~= "" then
-            for _, key in ipairs(self:BuildLookupKeys(unitName .. "-" .. realm)) do
-                if store.sessionByName[key] then
-                    return store.sessionByName[key]
-                end
+    if self:IsAccessible(fullUnitName) and self:IsAccessible(realm) and realm ~= "" then
+        for _, key in ipairs(self:BuildLookupKeys(fullUnitName .. "-" .. realm)) do
+            if store.sessionByName[key] then
+                return store.sessionByName[key]
             end
         end
     end
@@ -287,7 +285,7 @@ function Cache:RebindByGUID(store)
     for sender in pairs(store.primary) do
         local unit = self:FindPartyUnitForSender(sender)
         if unit then
-            local guid = UnitGUID(unit)
+            local guid = Key.Api.Unit:GetGUID(false, unit)
             if self:IsAccessible(guid) then
                 store.byGUID[guid] = store.primary[sender]
             end

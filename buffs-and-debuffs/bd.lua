@@ -13,7 +13,7 @@ end
 
 local function ResolveSpellIcon(spellId)
     if Key.Api.Spell and Key.Api.Spell.ResolveIcon then
-        return Key.Api.Spell:ResolveIcon(spellId)
+        return Key.Api.Spell:ResolveIcon(false, spellId)
     end
     return nil
 end
@@ -93,8 +93,12 @@ end
 
 ApplyMidnightData(GetMidnightData())
 
+local Middleware = Key.Api.Middleware
+local UnitAPI = Key.Api.Unit
+local TimerAPI = Key.Api.Timer
+
 local function IsSecretValue(value)
-    return issecretvalue and issecretvalue(value) or false
+    return Middleware:IsSecret(value)
 end
 
 local function IsUsableValue(value)
@@ -141,7 +145,7 @@ function Auras:ScanAuras(unit, filter, callback)
         return
     end
 
-    Key.Api.UnitAuras:Scan(unit, filter, callback, function(readableAura, rawAura)
+    Key.Api.UnitAuras:Scan(false, unit, filter, callback, function(readableAura, rawAura)
         return self:MergeAuraSources(readableAura, rawAura)
     end)
 end
@@ -308,7 +312,7 @@ function Auras:GetAuraNameCandidates(aura)
     addName(aura and aura.name)
 
     if aura and aura.spellId and Key.Api.Spell and Key.Api.Spell.GetSpellInfo then
-        local spellInfo = Key.Api.Spell:GetSpellInfo(aura.spellId)
+        local spellInfo = Key.Api.Spell:GetSpellInfo(false, aura.spellId)
         if spellInfo and spellInfo.name then
             addName(spellInfo.name)
         end
@@ -407,7 +411,7 @@ end
 
 function Auras:GetSpellIcon(spellId)
     if Key.Api.Spell and Key.Api.Spell.GetIcon then
-        return Key.Api.Spell:GetIcon(spellId)
+        return Key.Api.Spell:GetIcon(false, spellId)
     end
     return nil
 end
@@ -417,7 +421,7 @@ function Auras:GetAuraIcon(aura)
         return nil
     end
 
-    if aura.icon and (not issecretvalue or not issecretvalue(aura.icon)) then
+    if aura.icon and Middleware:IsAccessible(aura.icon) then
         return aura.icon
     end
 
@@ -429,7 +433,7 @@ function Auras:GetAuraRemainingSeconds(aura)
         return nil
     end
 
-    if issecretvalue and issecretvalue(aura.expirationTime) then
+    if Middleware:IsSecret(aura.expirationTime) then
         return nil
     end
 
@@ -437,7 +441,7 @@ function Auras:GetAuraRemainingSeconds(aura)
         return nil
     end
 
-    local remaining = aura.expirationTime - GetTime()
+    local remaining = aura.expirationTime - TimerAPI:GetTime(false)
     if remaining <= 0 then
         return nil
     end
@@ -511,7 +515,7 @@ function Auras:GetPlayerWeaponOilHit()
         return nil
     end
 
-    local weaponEnchant = Key.Api.WeaponEnchant:GetInfo()
+    local weaponEnchant = Key.Api.WeaponEnchant:GetInfo(false)
     if not weaponEnchant then
         return nil
     end
@@ -557,7 +561,7 @@ function Auras:GetConsumableStatus(unit)
         }
     end)
 
-    if UnitIsUnit(unit, "player") then
+    if UnitAPI:IsPlayer(false, unit) then
         local weaponOil = self:GetPlayerWeaponOilHit()
         if weaponOil then
             local oilHit = hits[self.KIND.OIL]
