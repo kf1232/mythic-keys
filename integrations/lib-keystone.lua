@@ -1,12 +1,12 @@
-local ADDON_NAME = ...
+Key.Integrations = Key.Integrations or {}
 
-Key.Integrations.LibKeystone = Key.Integrations.LibKeystone or {}
-local Provider = Key.Integrations.LibKeystone
+local Provider = {}
+Key.Integrations.LibKeystone = Provider
 
 Provider.id = "LibKeystone"
 
-function Provider:OnUpdate(host, keyLevel, mapID, playerRating, sender, channel)
-    if channel ~= "PARTY" then
+function Provider:OnUpdate(host, keyLevel, mapID, _playerRating, sender, channel)
+    if channel ~= "PARTY" and channel ~= "INSTANCE_CHAT" and channel ~= "RAID" then
         return
     end
 
@@ -18,12 +18,11 @@ function Provider:TryInit(host)
         return true
     end
 
-    local libStub = LibStub
-    if not libStub then
+    if not LibStub then
         return false
     end
 
-    local ok, libKeystone = pcall(libStub, "LibKeystone", true)
+    local ok, libKeystone = pcall(LibStub, "LibKeystone", true)
     if not ok or not libKeystone or not libKeystone.Register then
         return false
     end
@@ -40,7 +39,13 @@ function Provider:TryInit(host)
 end
 
 function Provider:Request(host)
-    if host.libKeystone and host.libKeystone.Request then
-        pcall(host.libKeystone.Request, "PARTY")
+    if not host.libKeystone or not host.libKeystone.Request then
+        return
+    end
+
+    local KeySync = Key.Data and Key.Data.KeySync
+    local channel = KeySync and KeySync.GetChannel and KeySync.GetChannel()
+    if channel then
+        pcall(host.libKeystone.Request, channel)
     end
 end
