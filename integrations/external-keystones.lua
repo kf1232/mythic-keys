@@ -1,7 +1,12 @@
-local ADDON_NAME = ...
+Key.Integrations = Key.Integrations or {}
 
-Key.Integrations.ExternalKeystones = Key.Integrations.ExternalKeystones or {}
-local External = Key.Integrations.ExternalKeystones
+local External = {}
+Key.Integrations.ExternalKeystones = External
+
+local Guard = Key.Guard
+local OwnedKeystone = Key.Data.OwnedKeystone
+local KeySync = Key.Data.KeySync
+local PlayerData = Key.Data.PlayerData
 
 External.providers = External.providers or {}
 
@@ -10,50 +15,85 @@ local KEYSTONE_PROVIDERS = {
     Key.Integrations.LibOpenRaid,
 }
 
-function External:NormalizeSender(sender)
-    if Key.Party and Key.Party.NormalizeSender then
-        return Key.Party:NormalizeSender(sender)
-    end
-    if not Key.Cache or not Key.Cache:IsAccessible(sender) or sender == "" then
+local ADDON_NAME = Key.name
+
+local function NormalizeSender(sender)
+    if not Guard.usable(sender) or sender == "" then
         return nil
     end
-    return Key.Api.Strings:Ambiguate(false, sender, "none")
+    if Ambiguate then
+        return Ambiguate(sender, "none")
+    end
+    return sender
 end
 
-function External:ApplyPartyKey(sender, level, mapID)
-    if not Key.Keystones or not Key.Keystones.SetPartyKey then
+local function SenderIsGroupMember(senderKey)
+    if not senderKey or not IsInGroup or not IsInGroup() then
         return false
     end
 
-    sender = self:NormalizeSender(sender)
+    if IsInRaid and IsInRaid() then
+        for i = 1, GetNumGroupMembers() do
+            local unit = "raid" .. i
+            if UnitExists(unit) and not UnitIsUnit(unit, "player") then
+                if PlayerData.GetCacheKey(unit) == senderKey then
+                    return true
+                end
+                local nameResult = Guard.call(UnitName, unit)
+                if nameResult.ok and nameResult[1] == senderKey then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitExists(unit) then
+            if PlayerData.GetCacheKey(unit) == senderKey then
+                return true
+            end
+            local nameResult = Guard.call(UnitName, unit)
+            if nameResult.ok and nameResult[1] == senderKey then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+function External:ApplyPartyKey(sender, level, mapID)
+    sender = NormalizeSender(sender)
     if not sender then
         return false
     end
 
-    if not Key.Keystones:IsAccessible(level) or not Key.Keystones:IsAccessible(mapID) then
+    if not Guard.usable(level) or not Guard.usable(mapID) then
         return false
     end
 
     level = tonumber(level)
     mapID = tonumber(mapID)
-    if not level or not mapID then
+    if level == nil or mapID == nil then
         return false
     end
 
-    if level < 0 or mapID < 0 then
+    if not OwnedKeystone.Validate(level, mapID) then
         return false
     end
 
-    if not Key.Keystones:SetPartyKey(sender, level, mapID) then
+    if not SenderIsGroupMember(sender) then
         return false
     end
 
-    if Key.Log and Key.Log.LogKeystone then
-        Key.Log:LogKeystone(sender, Key.Keystones:LookupCachedKeyBySender(sender))
+    if not OwnedKeystone.SetParty(sender, level, mapID) then
+        return false
     end
 
-    if Key and Key.Dispatch then
-        Key.Dispatch("REFRESH_UI", { ifShown = true })
+    if KeySync and KeySync.NotifyChanged then
+        KeySync.NotifyChanged()
     end
 
     return true
@@ -62,7 +102,8 @@ end
 function External:Init()
     local added = false
 
-    for _, provider in ipairs(KEYSTONE_PROVIDERS) do
+    for i = 1, #KEYSTONE_PROVIDERS do
+        local provider = KEYSTONE_PROVIDERS[i]
         if provider and provider.TryInit and provider:TryInit(self) then
             self.providers[provider.id] = true
             added = true
@@ -79,7 +120,8 @@ end
 function External:RequestPartyKeys()
     self:Init()
 
-    for _, provider in ipairs(KEYSTONE_PROVIDERS) do
+    for i = 1, #KEYSTONE_PROVIDERS do
+        local provider = KEYSTONE_PROVIDERS[i]
         if provider and provider.Request then
             provider:Request(self)
         end
@@ -88,7 +130,8 @@ end
 
 function External:GetProviderSummary()
     local names = {}
-    for _, provider in ipairs(KEYSTONE_PROVIDERS) do
+    for i = 1, #KEYSTONE_PROVIDERS do
+        local provider = KEYSTONE_PROVIDERS[i]
         if provider and provider.id and self.providers[provider.id] then
             names[#names + 1] = provider.id
         end
@@ -105,23 +148,15 @@ local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("ADDON_LOADED")
 initFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 initFrame:SetScript("OnEvent", function(_, event, arg1)
-    local function HandleEvent()
-        if event == "ADDON_LOADED" and arg1 ~= ADDON_NAME then
-            External:Init()
-            return
-        end
-
-        if event == "PLAYER_ENTERING_WORLD" then
-            if External:Init() and External.providers.LibOpenRaid and Key.Integrations.LibOpenRaid then
-                Key.Integrations.LibOpenRaid:ImportPartyCache(External)
-            end
-        end
+    if event == "ADDON_LOADED" and arg1 ~= ADDON_NAME then
+        External:Init()
+        return
     end
 
-    if Key.Log and Key.Log.RunProtected then
-        Key.Log:RunProtected("ExternalKeystones:" .. tostring(event), HandleEvent)
-    else
-        HandleEvent()
+    if event == "PLAYER_ENTERING_WORLD" then
+        if External:Init() and External.providers.LibOpenRaid and Key.Integrations.LibOpenRaid then
+            Key.Integrations.LibOpenRaid:ImportPartyCache(External)
+        end
     end
 end)
 

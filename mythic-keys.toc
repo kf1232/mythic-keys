@@ -1,0 +1,48 @@
+## Interface: 120100
+## Title: Mythic Keys
+## Notes: Party list for Mythic+ groups.
+## Author: MasFink
+## Version: 2026.0811.1
+## IconTexture: Interface\AddOns\mythic-keys\media\icon
+## OptionalDeps: DBM-Core, Details, Blizzard_EncounterJournal
+## SavedVariables: KeyDB
+
+# Stable release manifest. Copy this addon folder to Interface/AddOns/mythic-keys
+# and rename to mythic-keys.toc (folder name must match).
+# Keep shared load order in sync with mythic-keys-beta.toc when adding or moving files.
+
+Core.lua
+util\guard.lua
+util\chat.lua
+util\class-icon.lua
+util\spec.lua
+util\spell.lua
+util\action-button.lua
+util\combat-lockdown.lua
+util\escape.lua
+util\challenge-mode.lua
+util\encounter-journal.lua
+data\key-data\season-config.lua
+data\key-data\season-dungeons.lua
+data\key-data\owned-keystone.lua
+data\key-sync\key-sync.lua
+integrations\lib-keystone.lua
+integrations\lib-openraid.lua
+integrations\external-keystones.lua
+data\instance-loot\instance-loot.lua
+data\dungeon-teleport\spells.lua
+data\player-data\player-data.lua
+data\key-data\key-data.lua
+data\keys-history\keys-history.lua
+views\view-frame.lua
+views\dungeon-header.lua
+views\debug\debug.lua
+views\player-notes\player-notes.lua
+views\group-join-alert\group-join-alert.lua
+views\group-view\group-view.lua
+views\target-view\target-view.lua
+views\keys-history\keys-history.lua
+commands\keyf-t.lua
+commands\keyf-h.lua
+commands\keyf-d.lua
+commands\keyf.lua
