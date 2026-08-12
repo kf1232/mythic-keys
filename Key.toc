@@ -1,16 +1,15 @@
 ## Interface: 120100, 120007
-## Title: Mythic Keys
-## Notes: Party list for Mythic+ groups.
+## Title: Key
+## Notes: Party list for Mythic+ groups. Type /keyf to open.
 ## Author: MasFink
 ## Version: 2026.0811.3
-## IconTexture: Interface\AddOns\mythic-keys\media\icon
-## X-Curse-Project-ID: 1571010
-## OptionalDeps: DBM-Core, Details, Blizzard_EncounterJournal
+## IconTexture: Interface\AddOns\Key\media\icon
+## OptionalDeps: DBM-Core, Details
 ## SavedVariables: KeyDB
+## X-Curse-Project-ID: 1571010
 
-# Stable release manifest. Copy this addon folder to Interface/AddOns/mythic-keys
-# and rename to mythic-keys.toc (folder name must match).
-# Keep shared load order in sync with mythic-keys-beta.toc when adding or moving files.
+# CurseForge release manifest (see .pkgmeta). Dev copies use mythic-keys-beta.toc.
+# Keep shared load order in sync with mythic-keys.toc when adding or moving files.
 
 Core.lua
 util\guard.lua
