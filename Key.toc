@@ -2,7 +2,7 @@
 ## Title: Key
 ## Notes: Party list for Mythic+ groups. Type /keyf to open.
 ## Author: MasFink
-## Version: 2026.0811.3
+## Version: 2026.0813.1
 ## IconTexture: Interface\AddOns\Key\media\icon
 ## OptionalDeps: DBM-Core, Details
 ## SavedVariables: KeyDB
