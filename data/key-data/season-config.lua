@@ -26,16 +26,15 @@ Key.Data.SeasonConfig = {
         ["midnight-s2"] = {
             name = "Midnight Season 2",
 
-            -- Run /keyf dumpseason after login to fill icon FileIDs for dungeons missing icons.
             dungeons = {
-                { id = 588, name = "Altar of Fangs", short = "AOF", icon = nil, teleports = { 1286812 } },
-                { id = 587, name = "Murder Row", short = "MUR", icon = nil, teleports = { 1286809 } },
-                { id = 586, name = "Den of Nalorakk", short = "DEN", icon = nil, teleports = { 1286807 } },
-                { id = 584, name = "The Blinding Vale", short = "BLV", icon = nil, teleports = { 1286801 } },
-                { id = 585, name = "Voidscar Arena", short = "VSA", icon = nil, teleports = { 1286804 } },
+                { id = 588, name = "Altar of Fangs", short = "AOF", icon = 7956176, teleports = { 1286812 } },
+                { id = 587, name = "Murder Row", short = "MUR", icon = 7467179, teleports = { 1286809 } },
+                { id = 586, name = "Den of Nalorakk", short = "DEN", icon = 7478536, teleports = { 1286807 } },
+                { id = 584, name = "The Blinding Vale", short = "BLV", icon = 7478534, teleports = { 1286801 } },
+                { id = 585, name = "Voidscar Arena", short = "VSA", icon = 7479112, teleports = { 1286804 } },
                 { id = 176, name = "Kings' Rest", short = "KR", icon = 2011123, teleports = { 1286831 } },
-                { id = 399, name = "Ruby Life Pools", short = "RLP", icon = nil, teleports = { 393256 } },
-                { id = 247, name = "Temple of Sethraliss", short = "TOS", icon = 2011143, teleports = { 1286828 } },
+                { id = 399, name = "Ruby Life Pools", short = "RLP", icon = 4746639, teleports = { 393256 } },
+                { id = 247, name = "Temple of Sethraliss", short = "TOS", icon = 2178735, teleports = { 1286828 } },
             },
         },
     },
