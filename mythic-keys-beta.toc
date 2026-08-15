@@ -23,6 +23,7 @@ util\challenge-mode.lua
 util\encounter-journal.lua
 data\key-data\season-config.lua
 data\key-data\season-dungeons.lua
+data\player-data\player-data.lua
 data\key-data\owned-keystone.lua
 data\key-sync\key-sync.lua
 integrations\lib-keystone.lua
@@ -30,7 +31,6 @@ integrations\lib-openraid.lua
 integrations\external-keystones.lua
 data\instance-loot\instance-loot.lua
 data\dungeon-teleport\spells.lua
-data\player-data\player-data.lua
 data\key-data\key-data.lua
 data\keys-history\keys-history.lua
 views\view-frame.lua

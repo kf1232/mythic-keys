@@ -10,8 +10,6 @@ Key.Data.OwnedKeystone = OwnedKeystone
 
 local Guard = Key.Guard
 
-local PlayerData = Key.Data.PlayerData
-
 
 
 -- Cache keyed by unit GUID so party members can be added later without reshaping callers.
@@ -890,7 +888,9 @@ local function FindUnitForSenderKey(senderKey)
 
         local unit = units[i]
 
-        local cacheKey = PlayerData.GetCacheKey(unit)
+        local playerData = Key.Data and Key.Data.PlayerData
+
+        local cacheKey = playerData and playerData.GetCacheKey and playerData.GetCacheKey(unit)
 
         if cacheKey == senderKey then
 

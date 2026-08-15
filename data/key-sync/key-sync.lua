@@ -6,7 +6,14 @@ Key.Data.KeySync = KeySync
 local Guard = Key.Guard
 local Chat = Key.Util.Chat
 local OwnedKeystone = Key.Data.OwnedKeystone
-local PlayerData = Key.Data.PlayerData
+
+local function GetCacheKey(unit)
+    local playerData = Key.Data and Key.Data.PlayerData
+    if playerData and playerData.GetCacheKey then
+        return playerData.GetCacheKey(unit)
+    end
+    return nil
+end
 
 KeySync.PREFIX = "KeyF"
 KeySync.PROTOCOL = {
@@ -81,7 +88,7 @@ local function SenderIsGroupMember(senderKey)
         for i = 1, GetNumGroupMembers() do
             local unit = "raid" .. i
             if UnitExists(unit) and not UnitIsUnit(unit, "player") then
-                if PlayerData.GetCacheKey(unit) == senderKey then
+                if GetCacheKey(unit) == senderKey then
                     return true
                 end
                 local nameResult = Guard.call(UnitName, unit)
@@ -96,7 +103,7 @@ local function SenderIsGroupMember(senderKey)
     for i = 1, 4 do
         local unit = "party" .. i
         if UnitExists(unit) then
-            if PlayerData.GetCacheKey(unit) == senderKey then
+            if GetCacheKey(unit) == senderKey then
                 return true
             end
             local nameResult = Guard.call(UnitName, unit)

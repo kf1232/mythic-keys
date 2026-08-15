@@ -1,7 +1,6 @@
 Key.Integrations = Key.Integrations or {}
 
 local Guard = Key.Guard
-local PlayerData = Key.Data.PlayerData
 
 local Provider = {}
 Key.Integrations.LibOpenRaid = Provider
@@ -105,7 +104,8 @@ function Provider:ImportPartyCache(host)
     for _, unit in ipairs(CollectPartyUnits()) do
         local ok, keystoneInfo = pcall(host.openRaid.GetKeystoneInfo, unit)
         if ok and keystoneInfo then
-            local senderKey = PlayerData.GetCacheKey(unit)
+            local playerData = Key.Data and Key.Data.PlayerData
+            local senderKey = playerData and playerData.GetCacheKey and playerData.GetCacheKey(unit)
             if senderKey then
                 self:OnKeystoneUpdate(host, senderKey, keystoneInfo)
             end
