@@ -2,7 +2,7 @@
 ## Title: Mythic Keys
 ## Notes: Party list for Mythic+ groups.
 ## Author: MasFink
-## Version: 2026.0813.1
+## Version: 2026.0815.1
 ## IconTexture: Interface\AddOns\mythic-keys\media\icon
 ## X-Curse-Project-ID: 1571010
 ## OptionalDeps: DBM-Core, Details, Blizzard_EncounterJournal
