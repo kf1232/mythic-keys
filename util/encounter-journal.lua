@@ -62,6 +62,54 @@ local function BuildNameLookup()
     return ejLookupByName
 end
 
+local function NormalizeInstanceName(name)
+    if not name or name == "" then
+        return nil
+    end
+    local normalized = name:gsub("^The ", "")
+    normalized = normalized:gsub("['’`]", "")
+    normalized = normalized:gsub("%s+", " ")
+    normalized = normalized:lower()
+    return normalized
+end
+
+local function LookupInstanceID(instanceName)
+    if not instanceName then
+        return nil
+    end
+
+    local lookup = BuildNameLookup()
+    local instanceID = lookup[instanceName]
+    if instanceID and instanceID > 0 then
+        return instanceID, instanceName
+    end
+
+    if instanceName:match("^The ") then
+        instanceID = lookup[instanceName:sub(5)]
+        if instanceID and instanceID > 0 then
+            return instanceID, instanceName:sub(5)
+        end
+    else
+        local withThe = "The " .. instanceName
+        instanceID = lookup[withThe]
+        if instanceID and instanceID > 0 then
+            return instanceID, withThe
+        end
+    end
+
+    -- King's Rest vs Kings' Rest (and similar apostrophe variants).
+    local want = NormalizeInstanceName(instanceName)
+    if want then
+        for name, id in pairs(lookup) do
+            if id and id > 0 and NormalizeInstanceName(name) == want then
+                return id, name
+            end
+        end
+    end
+
+    return nil, instanceName
+end
+
 function EncounterJournal.ResolveInstanceID(mapChallengeModeID)
     if not mapChallengeModeID then
         return nil
@@ -79,10 +127,18 @@ function EncounterJournal.ResolveInstanceID(mapChallengeModeID)
         end
     end
 
-    local lookup = BuildNameLookup()
-    local instanceID = lookup[info.name]
-    if instanceID and instanceID > 0 then
+    local instanceID = select(1, LookupInstanceID(info.name))
+    if instanceID then
         return instanceID, info.name
+    end
+
+    local dungeon = Key.Data and Key.Data.SeasonDungeons and Key.Data.SeasonDungeons.GetDungeon
+        and Key.Data.SeasonDungeons.GetDungeon(mapChallengeModeID)
+    if dungeon and dungeon.name then
+        instanceID = select(1, LookupInstanceID(dungeon.name))
+        if instanceID then
+            return instanceID, dungeon.name
+        end
     end
 
     return nil, info.name
@@ -92,25 +148,7 @@ function EncounterJournal.ResolveInstanceIDByName(instanceName)
     if not instanceName then
         return nil
     end
-    local lookup = BuildNameLookup()
-    local instanceID = lookup[instanceName]
-    if instanceID and instanceID > 0 then
-        return instanceID, instanceName
-    end
-
-    -- EJ naming sometimes drops or adds a leading "The ".
-    local alternate
-    if instanceName:match("^The ") then
-        alternate = instanceName:sub(5)
-    else
-        alternate = "The " .. instanceName
-    end
-    instanceID = lookup[alternate]
-    if instanceID and instanceID > 0 then
-        return instanceID, alternate
-    end
-
-    return nil, instanceName
+    return LookupInstanceID(instanceName)
 end
 
 local function PrepareLootQuery(instanceID, difficultyID, options)

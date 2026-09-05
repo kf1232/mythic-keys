@@ -2,6 +2,7 @@ Season data lives in data/key-data/season-config.lua.
 Change `active` in season-config.lua to switch the live season.
 Each season entry includes a display name and dungeon list.
 Each dungeon entry includes map id, name, short label, icon texture FileID, and teleport spell IDs.
+Dungeon `id` values are `MapChallengeMode` ids from `/keyf dumpmaps`, not instance or UI map ids.
 The season dungeon list does not discover dungeons from the live client at login.
 SeasonDungeons reads the active season and exposes dungeons, name, and teleport lookups.
 Dungeon teleport spell lookup reads from the active season dungeon entries.
