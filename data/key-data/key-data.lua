@@ -121,6 +121,39 @@ function KeyData.FormatSeasonBestForMap(unit, mapID)
     return "—"
 end
 
+function KeyData.DumpRatingRuns(unit)
+    unit = unit or "player"
+    local Chat = Key.Util.Chat
+    local ChallengeMode = Key.Util.ChallengeMode
+    local summary, status = KeyData.GetRatingSummary(unit)
+    if not summary or not summary.runs then
+        Chat.Print(string.format("No rating summary for %s (%s).", unit, status or "empty"))
+        return
+    end
+
+    Chat.Print(string.format(
+        "Rating summary for %s: score %s, %d run%s",
+        unit,
+        tostring(summary.currentSeasonScore),
+        #summary.runs,
+        #summary.runs == 1 and "" or "s"
+    ))
+
+    for i = 1, #summary.runs do
+        local run = summary.runs[i]
+        local mapID = run.challengeModeID or run.mapChallengeModeID
+        local info = mapID and ChallengeMode.GetMapUIInfo(mapID)
+        print(string.format(
+            "  id=%s name=%q level=%s success=%s score=%s",
+            tostring(mapID),
+            tostring(info and info.name),
+            tostring(run.bestRunLevel),
+            tostring(run.finishedSuccess),
+            tostring(run.mapScore)
+        ))
+    end
+end
+
 -- True when Blizzard currently returns a rating summary for the unit.
 function KeyData.HasLiveSummary(unit)
     local summary = KeyData.GetRatingSummary(unit)

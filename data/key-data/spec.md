@@ -9,5 +9,6 @@ Dungeon teleport spell lookup reads from the active season dungeon entries.
 Each season dungeon column order matches the party and target views.
 Run /keyf dumpseason after login to print live icon FileIDs for the active season in season-config.lua.
 Run /keyf dumpmaps after login to print every MapChallengeMode id, name, and icon from the client.
+Run /keyf dumpruns after login to print the player's live Mythic+ rating summary (id, name, level, timed, score).
 Change `active` in season-config.lua to switch between stored season configs (e.g. midnight-s1, midnight-s2).
 The addon warns once when header icons are missing from the active season config.

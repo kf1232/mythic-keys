@@ -14,6 +14,8 @@ SlashCmdList["KEYF"] = function(msg)
             Key.Data.SeasonDungeons.DumpLiveValues()
         elseif sub == "dumpmaps" then
             Key.Data.SeasonDungeons.DumpAllMaps()
+        elseif sub == "dumpruns" then
+            Key.Data.KeyData.DumpRatingRuns("player")
         else
             Key.Views.Group:Toggle()
         end
