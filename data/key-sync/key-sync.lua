@@ -28,6 +28,7 @@ local eventFrame
 local rosterTimer
 local followUpTimer
 local lastPayload
+local lastMemberSignature
 local listeners = {}
 
 local function NotifyChanged()
@@ -183,6 +184,7 @@ end
 
 function KeySync.ClearLocalState()
     KeySync.InvalidatePayloadCache()
+    lastMemberSignature = nil
     if followUpTimer and followUpTimer.Cancel then
         followUpTimer:Cancel()
         followUpTimer = nil
@@ -193,12 +195,64 @@ function KeySync.ClearLocalState()
     end
 end
 
+local function MemberSignature()
+    local guids = {}
+    local expected = (GetNumGroupMembers and GetNumGroupMembers()) or 0
+    local found = 0
+
+    if IsInRaid and IsInRaid() then
+        for i = 1, expected do
+            local unit = "raid" .. i
+            if UnitExists(unit) then
+                local guidResult = Guard.call(UnitGUID, unit)
+                if guidResult.ok and guidResult[1] then
+                    found = found + 1
+                    guids[#guids + 1] = guidResult[1]
+                end
+            end
+        end
+    else
+        local playerGuidResult = Guard.call(UnitGUID, "player")
+        if playerGuidResult.ok and playerGuidResult[1] then
+            found = found + 1
+            guids[#guids + 1] = playerGuidResult[1]
+        end
+        for i = 1, 4 do
+            local unit = "party" .. i
+            if UnitExists(unit) then
+                local guidResult = Guard.call(UnitGUID, unit)
+                if guidResult.ok and guidResult[1] then
+                    found = found + 1
+                    guids[#guids + 1] = guidResult[1]
+                end
+            end
+        end
+    end
+
+    table.sort(guids)
+    return table.concat(guids, ","), found, expected
+end
+
 local function OnPartyChanged()
     if not IsInSyncGroup() then
         return
     end
 
     OwnedKeystone.RebindPartyUnits()
+    if OwnedKeystone.SchedulePartyPrune then
+        OwnedKeystone.SchedulePartyPrune()
+    end
+
+    local signature, found, expected = MemberSignature()
+    if found < expected then
+        return
+    end
+
+    if signature == lastMemberSignature then
+        return
+    end
+
+    lastMemberSignature = signature
     KeySync.PushAll(true)
     KeySync.RequestPartyKeys()
     KeySync.ScheduleFollowUp()
@@ -289,7 +343,7 @@ function KeySync.OnAddonMessage(prefix, message, channel, sender)
         return
     end
 
-    if OwnedKeystone.SetParty(senderKey, level, mapID) then
+    if OwnedKeystone.SetParty(senderKey, level, mapID, "keyf") then
         NotifyChanged()
     end
 end

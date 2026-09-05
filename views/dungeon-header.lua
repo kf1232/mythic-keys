@@ -133,7 +133,7 @@ local function EnsureBadge(headerFrame, index)
     return badge
 end
 
-local function HoldersUnchanged(previous, holders)
+local function HoldersIdentityEqual(previous, holders)
     if previous == holders then
         return true
     end
@@ -149,12 +149,22 @@ local function HoldersUnchanged(previous, holders)
         if a.guid ~= b.guid
             or a.level ~= b.level
             or a.mapChallengeModeID ~= b.mapChallengeModeID
-            or a.classFile ~= b.classFile
         then
             return false
         end
     end
     return true
+end
+
+local function PlaceBadge(headerFrame, badge, index)
+    badge:ClearAllPoints()
+    badge:SetPoint(
+        "TOPRIGHT",
+        headerFrame.chrome,
+        "TOPRIGHT",
+        -BADGE_PAD - ((index - 1) * (BADGE_SIZE + BADGE_GAP)),
+        -BADGE_PAD
+    )
 end
 
 local function UpdateKeyBadges(headerFrame)
@@ -163,29 +173,59 @@ local function UpdateKeyBadges(headerFrame)
     end
 
     local holders = OwnedKeystone.GetHoldersForMap(headerFrame.mapChallengeModeID)
-    if HoldersUnchanged(headerFrame.keyHolders, holders) then
-        return
-    end
+    local previous = headerFrame.keyHolders
     headerFrame.keyHolders = holders
 
     local badges = headerFrame.keyBadges or {}
-    for i = 1, #badges do
-        badges[i]:Hide()
+    if HoldersIdentityEqual(previous, holders) then
+        for i = 1, #holders do
+            local badge = badges[i]
+            if badge then
+                SetClassIconTexture(badge.icon, holders[i].classFile)
+            end
+        end
+        return
     end
 
+    local byGuid = {}
+    for i = 1, #badges do
+        local badge = badges[i]
+        if badge.holderGuid then
+            byGuid[badge.holderGuid] = badge
+        end
+    end
+
+    local used = {}
     for i = 1, #holders do
-        local badge = EnsureBadge(headerFrame, i)
         local holder = holders[i]
+        local guid = holder.guid or ("anon-" .. i)
+        local badge = byGuid[guid]
+        if not badge then
+            for j = 1, #badges do
+                local candidate = badges[j]
+                if not used[candidate] then
+                    badge = candidate
+                    break
+                end
+            end
+        end
+        if not badge then
+            badge = EnsureBadge(headerFrame, #badges + 1)
+            badges = headerFrame.keyBadges
+        end
+        used[badge] = true
+        badge.holderGuid = guid
         SetClassIconTexture(badge.icon, holder.classFile)
-        badge:ClearAllPoints()
-        badge:SetPoint(
-            "TOPRIGHT",
-            headerFrame.chrome,
-            "TOPRIGHT",
-            -BADGE_PAD - ((i - 1) * (BADGE_SIZE + BADGE_GAP)),
-            -BADGE_PAD
-        )
+        PlaceBadge(headerFrame, badge, i)
         badge:Show()
+    end
+
+    for i = 1, #badges do
+        local badge = badges[i]
+        if not used[badge] then
+            badge.holderGuid = nil
+            badge:Hide()
+        end
     end
 end
 

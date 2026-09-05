@@ -21,7 +21,27 @@ local POST_MYTHIC_PLUS_DELAY = 1
 local MAX_KEY_LEVEL = 99
 local BADGE_SOURCE_BAG = "bag"
 local BADGE_SOURCE_API = "api"
+local BADGE_SOURCE_KEYF = "keyf"
+local BADGE_SOURCE_LIBKEYSTONE = "libkeystone"
+local BADGE_SOURCE_LIBOPENRAID = "libopenraid"
 local BADGE_SOURCE_SYNC = "sync"
+
+local SOURCE_RANK = {
+    [BADGE_SOURCE_BAG] = 4,
+    [BADGE_SOURCE_API] = 3,
+    [BADGE_SOURCE_KEYF] = 3,
+    [BADGE_SOURCE_LIBKEYSTONE] = 2,
+    [BADGE_SOURCE_SYNC] = 2,
+    [BADGE_SOURCE_LIBOPENRAID] = 1,
+}
+
+local NOTIFY_DEBOUNCE = 0.2
+local PARTY_CLEAR_DELAY = 1.25
+local PARTY_PRUNE_DELAY = 2
+
+local notifyQueued = false
+local pendingClears = {}
+local pruneTimer
 
 local function CopyEntry(entry)
     if not entry then
@@ -66,8 +86,10 @@ local function MergeEntryMetadata(into, from)
     if not into.itemID and from.itemID then
         into.itemID = from.itemID
     end
-    if from.source == BADGE_SOURCE_BAG then
-        into.source = BADGE_SOURCE_BAG
+    local fromRank = SOURCE_RANK[from.source] or 0
+    local intoRank = SOURCE_RANK[into.source] or 0
+    if from.source and fromRank >= intoRank then
+        into.source = from.source
     elseif not into.source then
         into.source = from.source
     end
@@ -81,12 +103,41 @@ local function MergeEntryMetadata(into, from)
     return into
 end
 
-local function NotifyChanged()
+local function FlushNotifyChanged()
+    notifyQueued = false
     for i = 1, #listeners do
         local ok, err = pcall(listeners[i])
         if not ok then
             print("|cff00ff00Mythic Keys:|r OwnedKeystone listener error:", err)
         end
+    end
+end
+
+local function NotifyChanged()
+    if notifyQueued then
+        return
+    end
+    notifyQueued = true
+    if C_Timer and C_Timer.After then
+        C_Timer.After(NOTIFY_DEBOUNCE, FlushNotifyChanged)
+    else
+        FlushNotifyChanged()
+    end
+end
+
+local function SourceRank(source)
+    return SOURCE_RANK[source] or 0
+end
+
+local function CancelPendingClear(guid)
+    if guid then
+        pendingClears[guid] = (pendingClears[guid] or 0) + 1
+    end
+end
+
+local function CancelAllPendingClears()
+    for guid in pairs(pendingClears) do
+        pendingClears[guid] = (pendingClears[guid] or 0) + 1
     end
 end
 
@@ -229,6 +280,10 @@ local function SetGuidEntry(guid, unit, entry)
                 entry.realm = nameResult[2]
             end
         end
+    end
+
+    if previous and unit ~= PLAYER_UNIT and SourceRank(entry.source) < SourceRank(previous.source) then
+        return false
     end
 
     if EntriesEqual(previous, entry) then
@@ -625,13 +680,14 @@ function OwnedKeystone.GetSyncPayload()
     return string.format("K:%d:%d", entry.level, entry.mapChallengeModeID)
 end
 
-function OwnedKeystone.SetParty(senderKey, level, mapChallengeModeID)
+function OwnedKeystone.SetParty(senderKey, level, mapChallengeModeID, source)
     if not senderKey or senderKey == "" then
         return false
     end
 
     level = tonumber(level)
     mapChallengeModeID = tonumber(mapChallengeModeID)
+    source = source or BADGE_SOURCE_SYNC
 
     if level == 0 and mapChallengeModeID == 0 then
         local unit = FindUnitForSenderKey(senderKey)
@@ -640,7 +696,21 @@ function OwnedKeystone.SetParty(senderKey, level, mapChallengeModeID)
         end
         local guidResult = Guard.call(UnitGUID, unit)
         local guid = guidResult.ok and guidResult[1] or nil
-        if not guid then
+        if not guid or not byGuid[guid] then
+            return false
+        end
+        -- Peers often broadcast an empty key before their real one. Wait it out.
+        CancelPendingClear(guid)
+        local generation = (pendingClears[guid] or 0) + 1
+        pendingClears[guid] = generation
+        if C_Timer and C_Timer.After then
+            C_Timer.After(PARTY_CLEAR_DELAY, function()
+                if pendingClears[guid] ~= generation then
+                    return
+                end
+                pendingClears[guid] = nil
+                SetGuidEntry(guid, unit, nil)
+            end)
             return false
         end
         return SetGuidEntry(guid, unit, nil)
@@ -661,6 +731,8 @@ function OwnedKeystone.SetParty(senderKey, level, mapChallengeModeID)
         return false
     end
 
+    CancelPendingClear(guid)
+
     local name, realm = senderKey:match("^([^%-]+)%-(.+)$")
     if not name then
         name = senderKey
@@ -671,33 +743,75 @@ function OwnedKeystone.SetParty(senderKey, level, mapChallengeModeID)
         level = level,
         name = name,
         realm = realm,
-        source = BADGE_SOURCE_SYNC,
+        source = source,
     })
 end
 
 function OwnedKeystone.RebindPartyUnits()
     local live, playerGuid = LiveGroupGuids()
-    local changed = false
 
     for guid, entry in pairs(byGuid) do
         local unit = live[guid]
         if unit then
             entry.guid = guid
             entry.unit = unit
-        elseif guid ~= playerGuid then
+        elseif guid == playerGuid and entry then
+            entry.unit = PLAYER_UNIT
+        end
+    end
+end
+
+function OwnedKeystone.PruneMissingParty()
+    local live, playerGuid = LiveGroupGuids()
+    local expected = 1
+    if IsInGroup and IsInGroup() and GetNumGroupMembers then
+        expected = GetNumGroupMembers() or 1
+    end
+
+    local found = 0
+    for _ in pairs(live) do
+        found = found + 1
+    end
+    -- Roster is still settling; dropping keys here makes party badges flicker.
+    if found < expected then
+        return false
+    end
+
+    local changed = false
+    for guid in pairs(byGuid) do
+        if guid ~= playerGuid and not live[guid] then
+            CancelPendingClear(guid)
             byGuid[guid] = nil
             changed = true
-        elseif entry then
-            entry.unit = PLAYER_UNIT
         end
     end
 
     if changed then
         NotifyChanged()
     end
+    return changed
+end
+
+function OwnedKeystone.SchedulePartyPrune()
+    if pruneTimer and pruneTimer.Cancel then
+        pruneTimer:Cancel()
+        pruneTimer = nil
+    end
+
+    local function run()
+        pruneTimer = nil
+        OwnedKeystone.PruneMissingParty()
+    end
+
+    if C_Timer and C_Timer.After then
+        pruneTimer = C_Timer.After(PARTY_PRUNE_DELAY, run)
+    else
+        run()
+    end
 end
 
 function OwnedKeystone.ClearParty()
+    CancelAllPendingClears()
     local playerGuid = PlayerGuid()
     local changed = false
 
@@ -720,10 +834,9 @@ function OwnedKeystone.GetHoldersForMap(mapChallengeModeID)
         return {}
     end
 
-    local live, playerGuid = LiveGroupGuids()
     local holders = {}
-    for guid, entry in pairs(byGuid) do
-        if entry.mapChallengeModeID == mapChallengeModeID and (guid == playerGuid or live[guid]) then
+    for _, entry in pairs(byGuid) do
+        if entry.mapChallengeModeID == mapChallengeModeID then
             holders[#holders + 1] = CopyEntry(entry)
         end
     end

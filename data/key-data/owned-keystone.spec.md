@@ -20,13 +20,17 @@ An incomplete scan (bags or API not ready) does not clear the last known player 
 
 Owned keystone level and map values are validated before cache or broadcast use.
 
-Party member keystones arrive via key sync and are stored with source `sync`.
+Party member keystones arrive via key sync and are stored with a source (`keyf`, `libkeystone`, `libopenraid`, or `sync`).
+
+A lower-priority source cannot change a party member's already-known key.
+
+An empty party key (`K:0:0`) is ignored unless it stays empty for a short delay.
 
 The local player's keystone is never overwritten by party sync.
 
-Party keystones are dropped when that member leaves the group.
+Roster rebind updates unit tokens only. Stale party keys are pruned after the roster is complete and stable.
 
-Holders for a dungeon include only the local player and current group members.
+Holders for a dungeon come from the owned-keystone cache and are not hidden when a unit token is briefly missing.
 
 Callers can request the current key for a unit and the list of holders for a dungeon map id.
 

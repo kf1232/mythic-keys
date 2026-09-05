@@ -71,7 +71,7 @@ local function SenderIsGroupMember(senderKey)
     return false
 end
 
-function External:ApplyPartyKey(sender, level, mapID)
+function External:ApplyPartyKey(sender, level, mapID, source)
     sender = NormalizeSender(sender)
     if not sender then
         return false
@@ -95,7 +95,7 @@ function External:ApplyPartyKey(sender, level, mapID)
         return false
     end
 
-    if not OwnedKeystone.SetParty(sender, level, mapID) then
+    if not OwnedKeystone.SetParty(sender, level, mapID, source) then
         return false
     end
 

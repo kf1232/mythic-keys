@@ -282,7 +282,6 @@ local function CreateView()
     frame:SetScript("OnEvent", function(_, event, unit)
         if event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
             if frame:IsShown() then
-                RequestPartyKeysOnce()
                 Group:Refresh()
                 WatchPartyKeyData()
             else

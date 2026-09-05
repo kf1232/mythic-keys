@@ -10,7 +10,7 @@ function Provider:OnUpdate(host, keyLevel, mapID, _playerRating, sender, channel
         return
     end
 
-    host:ApplyPartyKey(sender, keyLevel, mapID)
+    host:ApplyPartyKey(sender, keyLevel, mapID, "libkeystone")
 end
 
 function Provider:TryInit(host)

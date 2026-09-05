@@ -1,7 +1,8 @@
 Optional bridges consume party keystone data from other addons and merge it into the owned-keystone cache.
 LibKeystone (bundled with DBM-Core) registers a callback for party keystone updates.
 LibOpenRaid (bundled with Details) registers for KeystoneUpdate callbacks and can import cached party keystone info on login.
-LibOpenRaid only accepts challenge-mode map ids, not generic instance map ids.
+LibOpenRaid only accepts `challengeMapID`, not generic instance or mythic-plus map ids.
+External party updates carry a source so KeyF data wins over OpenRaid when they disagree.
 ExternalKeystones validates sender, level, and map before calling OwnedKeystone.SetParty.
 External sources use the same party-member checks and Validate rules as native KeyF sync.
 Party keystone requests from key sync also request data from every active external provider.

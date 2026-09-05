@@ -16,20 +16,12 @@ function Provider:ResolveChallengeMapID(keystoneInfo)
         return nil
     end
 
-    -- Only challenge-mode map ids. Generic mapID is a different space and
-    -- highlights the wrong season dungeon when it happens to collide.
-    local candidates = {
-        keystoneInfo.challengeMapID,
-        keystoneInfo.mythicPlusMapID,
-    }
-
-    for i = 1, #candidates do
-        local mapID = UsableNumber(candidates[i])
-        if mapID and mapID > 0 then
-            return mapID
-        end
+    -- challengeMapID only. mythicPlusMapID / mapID are different spaces and
+    -- fight KeyF updates, which makes party badges flicker between dungeons.
+    local mapID = UsableNumber(keystoneInfo.challengeMapID)
+    if mapID and mapID > 0 then
+        return mapID
     end
-
     return nil
 end
 
@@ -44,7 +36,7 @@ function Provider:OnKeystoneUpdate(host, unitName, keystoneInfo)
         return
     end
 
-    host:ApplyPartyKey(unitName, level, mapID)
+    host:ApplyPartyKey(unitName, level, mapID, "libopenraid")
 end
 
 function Provider:TryInit(host)
