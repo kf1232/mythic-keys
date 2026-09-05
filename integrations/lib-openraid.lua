@@ -16,9 +16,10 @@ function Provider:ResolveChallengeMapID(keystoneInfo)
         return nil
     end
 
+    -- Only challenge-mode map ids. Generic mapID is a different space and
+    -- highlights the wrong season dungeon when it happens to collide.
     local candidates = {
         keystoneInfo.challengeMapID,
-        keystoneInfo.mapID,
         keystoneInfo.mythicPlusMapID,
     }
 

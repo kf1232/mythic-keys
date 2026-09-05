@@ -8,3 +8,4 @@ Inbound level and map values are validated before updating the party keystone ca
 The local player's key always comes from bag/API scan, never from inbound sync.
 Leaving the group clears cached party keystones and local sync state.
 Party keystones are stored in the owned-keystone cache keyed by member GUID.
+Roster rebind drops cached keys for players who are no longer in the group.

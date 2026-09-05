@@ -17,5 +17,8 @@ end
 if type(KeyBetaDB.keysHistory.entries) ~= "table" then
     KeyBetaDB.keysHistory.entries = {}
 end
+if type(KeyBetaDB.ownedKeystone) ~= "table" then
+    KeyBetaDB.ownedKeystone = {}
+end
 
 Key.db = KeyBetaDB

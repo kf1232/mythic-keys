@@ -133,12 +133,39 @@ local function EnsureBadge(headerFrame, index)
     return badge
 end
 
+local function HoldersUnchanged(previous, holders)
+    if previous == holders then
+        return true
+    end
+    if type(previous) ~= "table" or type(holders) ~= "table" then
+        return false
+    end
+    if #previous ~= #holders then
+        return false
+    end
+    for i = 1, #holders do
+        local a = previous[i]
+        local b = holders[i]
+        if a.guid ~= b.guid
+            or a.level ~= b.level
+            or a.mapChallengeModeID ~= b.mapChallengeModeID
+            or a.classFile ~= b.classFile
+        then
+            return false
+        end
+    end
+    return true
+end
+
 local function UpdateKeyBadges(headerFrame)
     if not headerFrame or not headerFrame.chrome or not OwnedKeystone then
         return
     end
 
     local holders = OwnedKeystone.GetHoldersForMap(headerFrame.mapChallengeModeID)
+    if HoldersUnchanged(headerFrame.keyHolders, holders) then
+        return
+    end
     headerFrame.keyHolders = holders
 
     local badges = headerFrame.keyBadges or {}

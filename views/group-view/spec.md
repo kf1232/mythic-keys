@@ -25,6 +25,7 @@ The party list discovers the player's keystone by scanning bags out of combat, w
 The party list receives other members' keystones over the KeyF addon message channel when grouped.
 The party list also reads party keystones from LibKeystone (DBM) and LibOpenRaid (Details) when those addons are loaded.
 The party list requests party keystones when opened and when the roster changes.
+The party list does not re-request party keystones on every redraw.
 The party list tooltip shows the player's keystone level on that dungeon when they own a key for it.
 The party list tooltip shows a party member's name and keystone level when they own a key for that dungeon.
 The party list shows the full dungeon name in a tooltip when you hover an instance icon.

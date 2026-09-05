@@ -138,14 +138,17 @@ local function WatchPartyKeyData()
     end)
 end
 
+local function RequestPartyKeysOnce()
+    if not KeySync or not IsInGroup() then
+        return
+    end
+    KeySync.PushAll(true)
+    KeySync.RequestPartyKeys()
+end
+
 function Group:Refresh()
     if not frame then
         return
-    end
-
-    if KeySync and IsInGroup() then
-        KeySync.PushAll(true)
-        KeySync.RequestPartyKeys()
     end
 
     local dungeons = SeasonDungeons.GetAll()
@@ -279,6 +282,7 @@ local function CreateView()
     frame:SetScript("OnEvent", function(_, event, unit)
         if event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
             if frame:IsShown() then
+                RequestPartyKeysOnce()
                 Group:Refresh()
                 WatchPartyKeyData()
             else
@@ -307,14 +311,6 @@ local function CreateView()
 
     Frame.RegisterMain(frame)
 
-    if KeySync then
-        KeySync.OnChanged(function()
-            if frame and frame:IsShown() then
-                Group:Refresh()
-            end
-        end)
-    end
-
     frame:Hide()
 end
 
@@ -338,6 +334,7 @@ function Group:Toggle()
         KeyData.StopWatch("group-view")
         frame:Hide()
     else
+        RequestPartyKeysOnce()
         self:Refresh()
         WatchPartyKeyData()
         Frame.ShowMain(frame)
