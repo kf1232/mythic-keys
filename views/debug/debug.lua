@@ -4,8 +4,6 @@ local Debug = {}
 Key.Views.Debug = Debug
 
 local Frame = Key.Views.Frame
-local SeasonDungeons = Key.Data.SeasonDungeons
-local InstanceLoot = Key.Data.InstanceLoot
 
 local frame
 
@@ -20,7 +18,7 @@ end
 function Debug:Toggle()
     if not frame then
         frame = CreateFrame("Frame", "KeyDebugFrame", UIParent, "BasicFrameTemplateWithInset")
-        frame:SetSize(320, 188)
+        frame:SetSize(320, 120)
         frame:SetPoint("CENTER")
         frame:SetMovable(true)
         frame:EnableMouse(true)
@@ -32,29 +30,11 @@ function Debug:Toggle()
         frame.title:SetPoint("TOP", frame, "TOP", 0, -5)
         frame.title:SetText("Mythic Keys Debug")
 
-        local dumpSeasonBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        dumpSeasonBtn:SetSize(220, 22)
-        dumpSeasonBtn:SetPoint("TOP", frame, "TOP", 0, -36)
-        dumpSeasonBtn:SetText("Dump season config")
-        dumpSeasonBtn:SetScript("OnClick", function()
-            SeasonDungeons.DumpLiveValues()
-        end)
-
-        local dumpLootBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        dumpLootBtn:SetSize(220, 22)
-        dumpLootBtn:SetPoint("TOP", dumpSeasonBtn, "BOTTOM", 0, -8)
-        dumpLootBtn:SetText("Dump instance loot")
-        dumpLootBtn:SetScript("OnClick", function()
-            InstanceLoot.DumpLiveValues(false)
-        end)
-
-        local dumpLootDebugBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        dumpLootDebugBtn:SetSize(220, 22)
-        dumpLootDebugBtn:SetPoint("TOP", dumpLootBtn, "BOTTOM", 0, -8)
-        dumpLootDebugBtn:SetText("Dump instance loot (debug)")
-        dumpLootDebugBtn:SetScript("OnClick", function()
-            InstanceLoot.DumpLiveValues(true)
-        end)
+        local body = frame:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+        body:SetPoint("TOP", frame.title, "BOTTOM", 0, -24)
+        body:SetWidth(280)
+        body:SetJustifyH("CENTER")
+        body:SetText("Data tools have been removed.")
 
         CreateCloseButton(frame)
         Frame.RegisterMain(frame)

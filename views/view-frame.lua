@@ -9,15 +9,12 @@ local MAIN_STRATA = "DIALOG"
 local MAIN_LEVEL = 200
 local NOTE_LEVEL = 300
 
--- Innermost first. Each Escape closes at most one keyf window.
 local ESCAPE_ORDER = {
     "KeyPlayerNoteAddFrame",
     "KeyPlayerNotesFrame",
-    "KeyGroupJoinAlertFrame",
     "KeyKeysHistoryFrame",
     "KeyTargetFrame",
     "KeyGroupFrame",
-    "KeyGearFrame",
     "KeyDebugFrame",
 }
 
@@ -49,9 +46,9 @@ end
 
 function Frame.CloseTopmost()
     for i = 1, #ESCAPE_ORDER do
-        local frame = _G[ESCAPE_ORDER[i]]
-        if frame and frame:IsShown() then
-            frame:Hide()
+        local named = _G[ESCAPE_ORDER[i]]
+        if named and named:IsShown() then
+            named:Hide()
             return true
         end
     end

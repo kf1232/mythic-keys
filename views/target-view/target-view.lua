@@ -6,8 +6,6 @@ Key.Views.Target = Target
 local Frame = Key.Views.Frame
 local DungeonHeader = Key.Views.DungeonHeader
 local SeasonDungeons = Key.Data.SeasonDungeons
-local KeyData = Key.Data.KeyData
-local PlayerData = Key.Data.PlayerData
 local PlayerNotes = Key.Views.PlayerNotes
 
 local ROW_COUNT = 2
@@ -18,8 +16,7 @@ local NAME_WIDTH = 100
 local COL_GAP = 8
 local NAME_COL_GAP = 12
 local TABLE_TOP = 44
-
-local COMPARE_UNITS = { "player", "target" }
+local ROW_LABELS = { "You", "Target" }
 
 local function ColumnLeft(columnIndex)
     return NAME_WIDTH + NAME_COL_GAP + (columnIndex - 1) * (ICON_SIZE + COL_GAP)
@@ -35,7 +32,6 @@ end
 local frame
 local memberRows = {}
 local dungeonHeaders = {}
-local statusText
 
 local function CreateCloseButton(parent)
     local close = CreateFrame("Button", nil, parent, "UIPanelCloseButton")
@@ -45,86 +41,13 @@ local function CreateCloseButton(parent)
     end)
 end
 
-local function GetScope()
-    if not UnitExists("target") then
-        return false, "No player targeted."
-    end
-
-    if not UnitIsPlayer("target") then
-        return false, "Target is not a player."
-    end
-
-    if UnitIsUnit("target", "player") then
-        return false, "You cannot compare with yourself."
-    end
-
-    return true
-end
-
-local function PopulateRow(row, unit, dungeons, dungeonCount)
-    PlayerNotes.SetRowUnit(row, unit)
-    local player = PlayerData.Get(unit)
-    local color = player.classFile and RAID_CLASS_COLORS[player.classFile]
-
-    row.name:SetText(player.name)
-    if color then
-        row.name:SetTextColor(color.r, color.g, color.b)
-    else
-        row.name:SetTextColor(1, 1, 1)
-    end
-
-    for j = 1, dungeonCount do
-        local dungeon = dungeons[j]
-        row.cells[j]:SetText(KeyData.FormatSeasonBestForMap(unit, dungeon.id))
-        row.cells[j]:SetTextColor(1, 1, 1)
-    end
-
-    row:Show()
-end
-
-local function WatchTargetKeyData()
-    if not frame then
-        return
-    end
-
-    KeyData.WatchUntilLive("target-view", function()
-        local inScope = GetScope()
-        if not inScope then
-            return {}
-        end
-        return COMPARE_UNITS
-    end, function()
-        if frame and frame:IsShown() then
-            Target:Refresh()
-        end
-    end)
-end
-
 function Target:Refresh()
     if not frame then
         return
     end
 
-    local dungeons = SeasonDungeons.GetAll()
-    local dungeonCount = #dungeons
-    local inScope, scopeInfo = GetScope()
-
-    if not inScope then
-        KeyData.StopWatch("target-view")
-        frame.title:SetText("Compare")
-        statusText:SetText(scopeInfo)
-        statusText:Show()
-        for i = 1, #dungeonHeaders do
-            dungeonHeaders[i]:Hide()
-        end
-        for i = 1, #memberRows do
-            memberRows[i]:Hide()
-        end
-        return
-    end
-
-    frame.title:SetText(string.format("Compare · %s · %s", PlayerData.Get("target").name, SeasonDungeons.GetName()))
-    statusText:Hide()
+    local dungeonCount = #SeasonDungeons.GetAll()
+    frame.title:SetText("Compare · " .. SeasonDungeons.GetName())
 
     for i = 1, #dungeonHeaders do
         dungeonHeaders[i]:Show()
@@ -132,11 +55,14 @@ function Target:Refresh()
 
     for i = 1, ROW_COUNT do
         local row = memberRows[i]
-        if not row then
-            return
+        row.name:SetText(ROW_LABELS[i])
+        row.name:SetTextColor(1, 1, 1)
+        for j = 1, dungeonCount do
+            row.cells[j]:SetText("—")
+            row.cells[j]:SetTextColor(0.5, 0.5, 0.5)
         end
-
-        PopulateRow(row, COMPARE_UNITS[i], dungeons, dungeonCount)
+        PlayerNotes.SetRowUnit(row, nil)
+        row:Show()
     end
 end
 
@@ -167,11 +93,6 @@ local function CreateView()
     frame.title:SetPoint("TOP", frame, "TOP", 0, -5)
     frame.title:SetWidth(tableWidth)
     frame.title:SetJustifyH("CENTER")
-
-    statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-    statusText:SetPoint("TOP", frame.title, "BOTTOM", 0, -8)
-    statusText:SetWidth(tableWidth)
-    statusText:SetJustifyH("CENTER")
 
     for j = 1, dungeonCount do
         dungeonHeaders[j] = DungeonHeader.Create(
@@ -208,18 +129,6 @@ local function CreateView()
     end
 
     CreateCloseButton(frame)
-
-    frame:RegisterEvent("PLAYER_TARGET_CHANGED")
-    frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    frame:SetScript("OnEvent", function(_, event)
-        if event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
-            if frame:IsShown() then
-                Target:Refresh()
-                WatchTargetKeyData()
-            end
-        end
-    end)
-
     Frame.RegisterMain(frame)
     frame:Hide()
 end
@@ -236,11 +145,9 @@ function Target:Toggle()
     end
 
     if frame:IsShown() then
-        KeyData.StopWatch("target-view")
         frame:Hide()
     else
         self:Refresh()
-        WatchTargetKeyData()
         Frame.ShowMain(frame)
     end
 end
