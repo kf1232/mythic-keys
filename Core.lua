@@ -1,21 +1,17 @@
-Key = Key or {}
-Key.name = ...
+local addonName, Key = ...
 
-KeyBetaDB = KeyBetaDB or {}
-if type(KeyBetaDB.playerData) ~= "table" then
-    KeyBetaDB.playerData = {}
-end
-if type(KeyBetaDB.keyData) ~= "table" then
-    KeyBetaDB.keyData = {}
-end
-if type(KeyBetaDB.playerGuidIndex) ~= "table" then
-    KeyBetaDB.playerGuidIndex = {}
-end
-if type(KeyBetaDB.keysHistory) ~= "table" then
-    KeyBetaDB.keysHistory = {}
-end
-if type(KeyBetaDB.keysHistory.entries) ~= "table" then
-    KeyBetaDB.keysHistory.entries = {}
-end
+Key.addonName = addonName
+Key.savedVarName = addonName == "mythic-keys-beta" and "KeyBetaDB" or "KeyDB"
 
-Key.db = KeyBetaDB
+function Key.GetDB()
+	local name = Key.savedVarName
+	if not name then
+		return nil
+	end
+	local db = _G[name]
+	if type(db) ~= "table" then
+		db = {}
+		_G[name] = db
+	end
+	return db
+end
