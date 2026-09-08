@@ -2,7 +2,7 @@
 ## Title: Mythic Keys (Beta)
 ## Notes: Beta build. Party list for Mythic+ groups.
 ## Author: MasFink
-## Version: 2026.0908.1b
+## Version: 2026.0908.2b
 ## IconTexture: Interface\AddOns\mythic-keys-beta\media\icon
 ## SavedVariables: KeyBetaDB
 

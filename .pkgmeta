@@ -1,0 +1,6 @@
+package-as: Key
+enable-nolib-creation: no
+ignore:
+  - mythic-keys.toc
+  - mythic-keys-beta.toc
+  - .gitignore
